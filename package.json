@@ -1,0 +1,44 @@
+{
+  "name": "ultra-parquet-converter",
+  "version": "1.0.0",
+  "description": "Universal file to Parquet converter with auto-detection. Supports CSV, XLSX, JSON, XML, TXT, and LOG files. Powered by Python and Apache Arrow.",
+  "main": "src/index.js",
+  "bin": {
+    "ultra-parquet-converter": "./src/cli.js"
+  },
+  "scripts": {
+    "postinstall": "node src/setup.js",
+    "test": "node test/test.js"
+  },
+  "keywords": [
+    "parquet",
+    "converter",
+    "csv",
+    "xlsx",
+    "json",
+    "xml",
+    "apache-arrow",
+    "data-conversion",
+    "cli",
+    "bigdata",
+    "python"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ultra-parquet-converter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/ultra-parquet-converter/issues"
+  },
+  "homepage": "https://github.com/yourusername/ultra-parquet-converter#readme"
+}
