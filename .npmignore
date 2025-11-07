@@ -1,0 +1,23 @@
+# Test files
+test/
+*.test.js
+test_data/
+
+# Development files
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Documentation source
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
