@@ -326,7 +326,7 @@ Las contribuciones son bienvenidas! Por favor:
 
 ## 📝 Licencia
 
-MIT License - ver el archivo [LICENSE](LICENSE) para más detalles.
+Apache-2.0 License - ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
