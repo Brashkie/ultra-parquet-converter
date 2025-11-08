@@ -82,13 +82,13 @@ async function convertToParquet(inputFile, options = {}) {
  */
 async function checkPythonSetup() {
   return new Promise((resolve) => {
-    const pythonProcess = spawn('python3', ['--version']);
+    const pythonProcess = spawn('python', ['--version']);
 
     pythonProcess.on('close', (code) => {
       if (code !== 0) {
         resolve({
           installed: false,
-          message: 'Python 3 no está instalado o no está en el PATH'
+          message: 'Python no está instalado o no está en el PATH'
         });
       } else {
         resolve({
