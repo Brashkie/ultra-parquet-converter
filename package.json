@@ -35,10 +35,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/ultra-parquet-converter.git"
+    "url": "https://github.com/Brashkie/ultra-parquet-converter.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/ultra-parquet-converter/issues"
+    "url": "https://github.com/Brashkie/ultra-parquet-converter/issues"
   },
-  "homepage": "https://github.com/yourusername/ultra-parquet-converter#readme"
+  "homepage": "https://github.com/Brashkie/ultra-parquet-converter#readme"
 }
