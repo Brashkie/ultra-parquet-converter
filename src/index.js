@@ -71,7 +71,7 @@ async function convertToParquet(inputFile, options = {}) {
     });
 
     pythonProcess.on('error', (err) => {
-      reject(new Error(`Error al ejecutar Python: ${err.message}. Asegúrate de tener Python 3 instalado.`));
+      reject(new Error(`Error al ejecutar Python: ${err.message}. Asegúrate de tener Python instalado.`));
     });
   });
 }
@@ -93,7 +93,7 @@ async function checkPythonSetup() {
       } else {
         resolve({
           installed: true,
-          message: 'Python 3 está instalado'
+          message: 'Python está instalado'
         });
       }
     });
@@ -101,7 +101,7 @@ async function checkPythonSetup() {
     pythonProcess.on('error', () => {
       resolve({
         installed: false,
-        message: 'Python 3 no está instalado o no está en el PATH'
+        message: 'Python no está instalado o no está en el PATH'
       });
     });
   });
