@@ -1,6 +1,6 @@
 {
   "name": "ultra-parquet-converter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Universal file to Parquet converter with auto-detection. Supports CSV, XLSX, JSON, XML, TXT, and LOG files. Powered by Python and Apache Arrow.",
   "main": "src/index.js",
   "bin": {
