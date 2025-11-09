@@ -39,7 +39,7 @@ Combina la velocidad de Node.js con el poder de Python + Apache Arrow para conve
 
 - **Node.js** 18 o superior
 - **Python 3.8+** instalado en el sistema
-- **pip3** para instalar dependencias Python
+- **pip** para instalar dependencias Python
 
 ### Instalar el paquete
 
@@ -58,7 +58,7 @@ npx ultra-parquet-converter setup
 O manualmente:
 
 ```bash
-pip3 install pandas pyarrow openpyxl lxml
+pip install pandas pyarrow openpyxl lxml
 ```
 
 ---
@@ -361,5 +361,6 @@ Apache-2.0 License - ver el archivo [LICENSE](LICENSE) para más detalles.
 ---
 
 **Hecho con ❤️ para la comunidad de Data Engineering**
+**Creador: Hepein Oficial x Brashkie**
 
 ⭐ Si te gusta este proyecto, dale una estrella en GitHub!
