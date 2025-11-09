@@ -343,9 +343,9 @@ Apache-2.0 License - ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ¿Encontraste un bug? ¿Tienes una sugerencia? 
 
-- 🐛 [Reportar un issue](https://github.com/yourusername/ultra-parquet-converter/issues)
-- 💡 [Solicitar una feature](https://github.com/yourusername/ultra-parquet-converter/issues)
-- 📧 Email: your.email@example.com
+- 🐛 [Reportar un issue](https://github.com/Brashkie/ultra-parquet-converter/issues)
+- 💡 [Solicitar una feature](https://github.com/Brashkie/ultra-parquet-converter/issues)
+- 📧 Email: electronicatodo2006@gmail.com
 
 ---
 
