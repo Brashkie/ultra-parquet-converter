@@ -1,102 +1,113 @@
-//#!/usr/bin/env node
-
-const { program } = require('commander');
-const chalk = require('chalk');
-const ora = require('ora');
+const { spawn } = require('child_process');
 const path = require('path');
-const { convertToParquet, checkPythonSetup } = require('./index');
+const fs = require('fs');
 
-program
-  .name('ultra-parquet-converter')
-  .description('🚀 Convierte archivos CSV, XLSX, JSON, XML, TXT, LOG a formato Parquet')
-  .version('1.0.0')
-  .argument('<input>', 'Archivo de entrada')
-  .option('-o, --output <file>', 'Archivo de salida (opcional)')
-  .option('-v, --verbose', 'Modo verbose con información detallada')
-  .action(async (input, options) => {
-    console.log(chalk.bold.cyan('\n🔄 Ultra Parquet Converter\n'));
-
-    // Verifica Python
-    const spinner = ora('Verificando Python...').start();
-    const pythonCheck = await checkPythonSetup();
-
-    if (!pythonCheck.installed) {
-      spinner.fail(chalk.red('Python no encontrado'));
-      console.log(chalk.yellow('\n⚠️  Instala Python y ejecuta:'));
-      console.log(chalk.white('   pip install pandas pyarrow openpyxl lxml\n'));
-      process.exit(1);
+/**
+ * Convierte un archivo a formato Parquet
+ * @param {string} inputFile - Ruta del archivo de entrada
+ * @param {Object} options - Opciones de conversión
+ * @param {string} options.output - Ruta del archivo de salida (opcional)
+ * @param {boolean} options.verbose - Modo verbose (opcional)
+ * @returns {Promise<Object>} - Resultado de la conversión
+ */
+async function convertToParquet(inputFile, options = {}) {
+  return new Promise((resolve, reject) => {
+    // Valida que el archivo exista
+    if (!fs.existsSync(inputFile)) {
+      return reject(new Error(`Archivo no encontrado: ${inputFile}`));
     }
 
-    spinner.succeed(chalk.green('Python 3 detectado'));
+    // Construye los argumentos para Python
+    const pythonScript = path.join(__dirname, '..', 'python', 'converter.py');
+    const args = [pythonScript, inputFile];
 
-    // Convierte el archivo
-    const convertSpinner = ora('Convirtiendo archivo...').start();
-
-    try {
-      const result = await convertToParquet(input, options);
-
-      convertSpinner.succeed(chalk.green('✅ Conversión exitosa!'));
-
-      // Muestra resultados
-      console.log(chalk.bold('\n📊 Resultados:\n'));
-      console.log(chalk.white(`   Archivo origen:  ${chalk.cyan(path.basename(result.input_file))}`));
-      console.log(chalk.white(`   Archivo destino: ${chalk.cyan(path.basename(result.output_file))}`));
-      console.log(chalk.white(`   Filas:           ${chalk.yellow(result.rows.toLocaleString())}`));
-      console.log(chalk.white(`   Columnas:        ${chalk.yellow(result.columns)}`));
-      console.log(chalk.white(`   Tamaño original: ${chalk.magenta(formatBytes(result.input_size))}`));
-      console.log(chalk.white(`   Tamaño Parquet:  ${chalk.magenta(formatBytes(result.output_size))}`));
-      console.log(chalk.white(`   Compresión:      ${chalk.green(result.compression_ratio + '%')}`));
-      console.log(chalk.white(`   Tipo detectado:  ${chalk.blue(result.file_type.toUpperCase())}\n`));
-
-    } catch (error) {
-      convertSpinner.fail(chalk.red('Error en conversión'));
-      console.error(chalk.red(`\n❌ ${error.message}\n`));
-      process.exit(1);
+    if (options.output) {
+      args.push('-o', options.output);
     }
-  });
 
-// Comando para instalar dependencias Python
-program
-  .command('setup')
-  .description('Instala las dependencias Python necesarias')
-  .action(async () => {
-    console.log(chalk.bold.cyan('\n🔧 Instalando dependencias Python...\n'));
+    if (options.verbose) {
+      args.push('-v');
+    }
 
-    const spinner = ora('Instalando paquetes...').start();
-
-    const { spawn } = require('child_process');
-    const requirementsPath = path.join(__dirname, '..', 'python', 'requirements.txt');
-
-    const installProcess = spawn('pip3', ['install', '-r', requirementsPath], {
-      stdio: 'inherit'
+    // Ejecuta el script Python
+    const pythonProcess = spawn('python3', args, {
+      stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    installProcess.on('close', (code) => {
-      if (code === 0) {
-        spinner.succeed(chalk.green('✅ Dependencias instaladas correctamente'));
-        console.log(chalk.white('\n✨ Ahora puedes usar ultra-parquet-converter\n'));
-      } else {
-        spinner.fail(chalk.red('Error al instalar dependencias'));
-        process.exit(1);
+    let stdout = '';
+    let stderr = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        // Intenta parsear el error como JSON
+        try {
+          const errorData = JSON.parse(stdout || '{}');
+          return reject(new Error(errorData.error || `Error en conversión (código ${code})`));
+        } catch (e) {
+          return reject(new Error(`Error en conversión: ${stderr || stdout || 'Error desconocido'}`));
+        }
+      }
+
+      // Parsea el resultado
+      try {
+        const result = JSON.parse(stdout);
+        
+        if (!result.success) {
+          return reject(new Error(result.error || 'Error desconocido en conversión'));
+        }
+
+        resolve(result);
+      } catch (e) {
+        reject(new Error(`Error al parsear resultado: ${e.message}`));
       }
     });
 
-    installProcess.on('error', (err) => {
-      spinner.fail(chalk.red('Error al ejecutar pip'));
-      console.error(chalk.red(`\n❌ ${err.message}\n`));
-      process.exit(1);
+    pythonProcess.on('error', (err) => {
+      reject(new Error(`Error al ejecutar Python: ${err.message}. Asegúrate de tener Python instalado.`));
     });
   });
-
-program.parse();
+}
 
 /**
- * Formatea bytes a tamaño legible
+ * Verifica que Python y las dependencias estén instaladas
+ * @returns {Promise<Object>} - Estado de la instalación
  */
-function formatBytes(bytes) {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+async function checkPythonSetup() {
+  return new Promise((resolve) => {
+    const pythonProcess = spawn('python', ['--version']);
+
+    pythonProcess.on('close', (code) => {
+      if (code !== 0) {
+        resolve({
+          installed: false,
+          message: 'Python no está instalado o no está en el PATH'
+        });
+      } else {
+        resolve({
+          installed: true,
+          message: 'Python está instalado'
+        });
+      }
+    });
+
+    pythonProcess.on('error', () => {
+      resolve({
+        installed: false,
+        message: 'Python no está instalado o no está en el PATH'
+      });
+    });
+  });
 }
+
+module.exports = {
+  convertToParquet,
+  checkPythonSetup
+};
