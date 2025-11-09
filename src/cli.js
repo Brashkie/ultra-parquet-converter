@@ -21,8 +21,8 @@ program
     const pythonCheck = await checkPythonSetup();
 
     if (!pythonCheck.installed) {
-      spinner.fail(chalk.red('Python 3 no encontrado'));
-      console.log(chalk.yellow('\n⚠️  Instala Python 3 y ejecuta:'));
+      spinner.fail(chalk.red('Python no encontrado'));
+      console.log(chalk.yellow('\n⚠️  Instala Python y ejecuta:'));
       console.log(chalk.white('   pip install pandas pyarrow openpyxl lxml\n'));
       process.exit(1);
     }
