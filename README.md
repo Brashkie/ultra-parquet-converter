@@ -253,7 +253,7 @@ Verifica que Python esté instalado correctamente.
 ```javascript
 {
   installed: true,
-  message: "Python 3 está instalado"
+  message: "Python está instalado"
 }
 ```
 
@@ -265,11 +265,11 @@ Verifica que Python esté instalado correctamente.
 
 ```bash
 # Verifica la instalación
-python3 --version
+python --version
 
 # Si no está instalado:
-# macOS: brew install python3
-# Ubuntu: sudo apt install python3 python3-pip
+# macOS: brew install python
+# Ubuntu: sudo apt install python python-pip
 # Windows: descargar de python.org
 ```
 
