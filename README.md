@@ -361,6 +361,6 @@ Apache-2.0 License - ver el archivo [LICENSE](LICENSE) para más detalles.
 ---
 
 **Hecho con ❤️ para la comunidad de Data Engineering**
--**Creador: Hepein Oficial x Brashkie**
+- **Creador: Hepein Oficial x Brashkie**
 
 ⭐ Si te gusta este proyecto, dale una estrella en GitHub!
