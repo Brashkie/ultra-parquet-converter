@@ -18,7 +18,7 @@ pythonCheck.on('close', (code) => {
   console.log('📦 Para instalar las dependencias Python, ejecuta:\n');
   console.log('   npx ultra-parquet-converter setup\n');
   console.log('   O manualmente:\n');
-  console.log('   pip3 install pandas pyarrow openpyxl lxml\n');
+  console.log('   pip install pandas pyarrow openpyxl lxml\n');
 });
 
 pythonCheck.on('error', () => {
