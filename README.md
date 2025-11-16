@@ -10,6 +10,24 @@ Combina la velocidad de Node.js con el poder de Python + Apache Arrow para conve
 
 ---
 
+## ✨ Mejoras que se agregaran
+
+| ADD | Version |
+|-----|---------|
+| .TSV | 1.0.3 |
+| .PSV/.DSV | 1.0.4 |
+| Cita avanzada | 1.0.5 |
+| Auto Reparacion/ Auto normalizacion | 1.0.6 |
+| Auto Deteccion de tipo | 1.0.7 |
+| Detectar schema auto | 1.0.8 |
+| Corregir CSV corruptos | 1.0.9 |
+| Eliminar columnas vacias | 1.0.10 |
+| .yaml .jsonl | 1.2.0 |
+| Soporte para grandes volumenes | 1.2.1 |
+| SQL dumps | 1.2.2 |
+
+---
+
 ## ✨ Características
 
 - 🎯 **Detección automática** de tipo de archivo por extensión
