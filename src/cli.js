@@ -9,7 +9,7 @@ const { convertToParquet, checkPythonSetup } = require('./index');
 program
   .name('ultra-parquet-converter')
   .description('🚀 Convierte archivos CSV, XLSX, JSON, XML, TXT, LOG a formato Parquet')
-  .version('1.0.0')
+  .version('1.0.2')
   .argument('<input>', 'Archivo de entrada')
   .option('-o, --output <file>', 'Archivo de salida (opcional)')
   .option('-v, --verbose', 'Modo verbose con información detallada')
