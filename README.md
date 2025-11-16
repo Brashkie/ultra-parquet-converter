@@ -10,7 +10,7 @@ Combina la velocidad de Node.js con el poder de Python + Apache Arrow para conve
 
 ---
 
-## ✨ Mejoras que se agregaran
+## ✨ Roadmap Futuro
 
 | ADD | Version |
 |-----|---------|
