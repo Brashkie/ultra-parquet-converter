@@ -27,7 +27,7 @@ program
       process.exit(1);
     }
 
-    spinner.succeed(chalk.green('Python 3 detectado'));
+    spinner.succeed(chalk.green('Python detectado'));
 
     // Convierte el archivo
     const convertSpinner = ora('Convirtiendo archivo...').start();
