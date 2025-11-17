@@ -421,7 +421,7 @@ Apache-2.0 License - ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ## 📈 Changelog
 
-### v1.1.0 (Actual)
+### v1.0.3 (Actual)
 - ✨ Soporte para TSV, PSV y DSV
 - 🚀 Comando `batch` para conversión masiva
 - 📋 Comando `info` para ver detalles de archivos
