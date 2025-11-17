@@ -1,30 +1,13 @@
 # 🚀 Ultra Parquet Converter
 
 [![npm version](https://img.shields.io/npm/v/ultra-parquet-converter.svg)](https://www.npmjs.com/package/ultra-parquet-converter)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://python.org)
 
-**Conversor universal de archivos a formato Parquet** con detección automática de tipo de archivo. Soporta CSV, XLSX, JSON, XML, TXT y LOG.
+**Conversor universal de archivos a formato Parquet** con detección automática de tipo de archivo. Soporta CSV, TSV, PSV, DSV, XLSX, JSON, XML, TXT y LOG.
 
 Combina la velocidad de Node.js con el poder de Python + Apache Arrow para conversiones ultra-rápidas y eficientes.
-
----
-
-## ✨ Roadmap Futuro
-
-| ADD | Version |
-|-----|---------|
-| .TSV | 1.0.3 |
-| .PSV/.DSV | 1.0.4 |
-| Cli avanzada | 1.0.5 |
-| Auto Reparacion/ Auto normalizacion | 1.0.6 |
-| Auto Deteccion de tipo | 1.0.7 |
-| Detectar schema auto | 1.0.8 |
-| Corregir CSV corruptos | 1.0.9 |
-| Eliminar columnas vacias | 1.0.10 |
-| .yaml .jsonl | 1.2.0 |
-| Soporte para grandes volumenes | 1.2.1 |
-| SQL dumps | 1.2.2 |
 
 ---
 
@@ -32,22 +15,29 @@ Combina la velocidad de Node.js con el poder de Python + Apache Arrow para conve
 
 - 🎯 **Detección automática** de tipo de archivo por extensión
 - ⚡ **Ultra-rápido** gracias a Apache Arrow y Pandas
-- 📦 **Compresión Snappy** para archivos más pequeños
+- 📦 **Compresión Snappy** para archivos más pequeños (50-90% reducción)
 - 🔧 **Dual mode**: CLI y librería JavaScript
+- 🌐 **Multiplataforma**: Windows, Linux y macOS
+- 🔄 **Auto-detección de Python**: Funciona con `py`, `python` o `python3`
 - 🌈 **Interfaz amigable** con colores y spinners
 - 📊 **Estadísticas detalladas** de conversión
 - 🛡️ **Manejo robusto de errores**
 
 ## 📋 Formatos Soportados
 
-| Formato | Extensión | Detección |
-|---------|-----------|-----------|
-| CSV | `.csv` | ✅ Automática |
-| Excel | `.xlsx`, `.xls` | ✅ Automática |
-| JSON | `.json` | ✅ Múltiples orientaciones |
-| XML | `.xml` | ✅ Parsing inteligente |
-| Texto | `.txt` | ✅ Detección de delimitadores |
-| Logs | `.log` | ✅ Parsing línea por línea |
+| Formato | Extensión | Delimitador | Uso común |
+|---------|-----------|-------------|-----------|
+| **CSV** | `.csv` | `,` (coma) | Archivos estándar |
+| **TSV** | `.tsv` | `\t` (tab) | Datos tabulares, Excel exports |
+| **PSV** | `.psv` | `\|` (pipe) | Bases de datos, sistemas Unix |
+| **DSV** | `.dsv` | Auto-detect | Delimitador desconocido |
+| **Excel** | `.xlsx`, `.xls` | N/A | Hojas de cálculo |
+| **JSON** | `.json` | N/A | APIs, configuraciones |
+| **XML** | `.xml` | N/A | Datos estructurados |
+| **Texto** | `.txt` | Auto-detect | Archivos de texto plano |
+| **Logs** | `.log` | Auto-detect | Archivos de registro |
+
+> 🆕 **Novedad v1.0.3**: Soporte para TSV, PSV y DSV con auto-detección mejorada de delimitadores
 
 ---
 
@@ -57,26 +47,36 @@ Combina la velocidad de Node.js con el poder de Python + Apache Arrow para conve
 
 - **Node.js** 18 o superior
 - **Python 3.8+** instalado en el sistema
+  - Windows: `py`, `python` o `python3` 
+  - Linux/macOS: `python3` o `python`
 - **pip** para instalar dependencias Python
 
-### Instalar el paquete
+### Verificar requisitos
+```bash
+# Verificar Node.js
+node --version
 
+# Verificar Python (prueba estos comandos)
+py --version       # Windows (Python Launcher)
+python --version   # Windows/Linux
+python3 --version  # Linux/macOS
+```
+
+### Instalar el paquete
 ```bash
 npm install ultra-parquet-converter
 ```
 
 ### Instalar dependencias Python
-
-Después de instalar el paquete NPM:
-
 ```bash
+# Opción 1: Automático (recomendado)
 npx ultra-parquet-converter setup
-```
 
-O manualmente:
-
-```bash
+# Opción 2: Manual
 pip install pandas pyarrow openpyxl lxml
+
+# En algunos sistemas puede ser pip3
+pip3 install pandas pyarrow openpyxl lxml
 ```
 
 ---
@@ -85,44 +85,64 @@ pip install pandas pyarrow openpyxl lxml
 
 ### Como CLI (Línea de comandos)
 
-#### Conversión básica
-
+#### Conversión simple
 ```bash
-npx ultra-parquet-converter archivo.csv
+ultra-parquet-converter convert archivo.csv
+# o usar el alias corto
+ultra-parquet-converter c archivo.tsv
 ```
 
-Esto creará `archivo.parquet` en el mismo directorio.
-
-#### Especificar archivo de salida
-
+#### Conversión con opciones avanzadas
 ```bash
-npx ultra-parquet-converter datos.json -o salida.parquet
+# Con archivo de salida personalizado
+ultra-parquet-converter convert datos.json -o salida.parquet
+
+# Modo verbose (muestra logs detallados)
+ultra-parquet-converter convert logs.log -v
+
+# Con compresión personalizada
+ultra-parquet-converter convert data.psv --compression gzip
 ```
 
-#### Modo verbose
+**Opciones de compresión disponibles:**
+- `snappy` (por defecto) - Más rápida, buena compresión
+- `gzip` - Mayor compresión, más lenta
+- `brotli` - Máxima compresión
+- `none` - Sin compresión
 
+#### Conversión batch (múltiples archivos) 🆕
 ```bash
-npx ultra-parquet-converter logs.log -v
+# Convierte todos los CSV en el directorio actual
+ultra-parquet-converter batch "*.csv"
+
+# Convierte todos los JSON en carpeta data/
+ultra-parquet-converter batch "data/*.json" -o output/
+
+# Modo verbose con directorio de salida personalizado
+ultra-parquet-converter batch "*.tsv" -o converted/ -v
+
+# Procesar logs diarios
+ultra-parquet-converter batch "logs/2024-*.log" -o parquet/
 ```
 
-#### Ejemplos prácticos
-
+#### Ver información de archivo 🆕
 ```bash
-# Convertir CSV
-npx ultra-parquet-converter ventas_2024.csv
+# Ver detalles sin convertir
+ultra-parquet-converter info archivo.csv
+```
 
-# Convertir Excel con salida personalizada
-npx ultra-parquet-converter reporte.xlsx -o data/reporte.parquet
+#### Todos los comandos disponibles
+```bash
+ultra-parquet-converter --help
 
-# Convertir JSON con información detallada
-npx ultra-parquet-converter api_response.json -v
-
-# Convertir logs
-npx ultra-parquet-converter app.log -o logs/app.parquet
+# Comandos disponibles:
+#   convert (c)  - Convierte un archivo
+#   batch (b)    - Convierte múltiples archivos
+#   info (i)     - Muestra información del archivo
+#   setup        - Instala dependencias Python
 ```
 
 ### Como librería en tu código
-
 ```javascript
 const { convertToParquet } = require('ultra-parquet-converter');
 
@@ -130,9 +150,9 @@ const { convertToParquet } = require('ultra-parquet-converter');
 async function convert() {
   try {
     const result = await convertToParquet('datos.csv');
-    console.log('Conversión exitosa:', result);
+    console.log('✅ Conversión exitosa:', result);
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('❌ Error:', error.message);
   }
 }
 
@@ -149,18 +169,20 @@ async function convertWithOptions() {
 ```
 
 ### Ejemplo completo
-
 ```javascript
 const { convertToParquet, checkPythonSetup } = require('ultra-parquet-converter');
 
 async function main() {
-  // Verificar Python
+  // Verificar Python (detecta automáticamente py/python/python3)
   const pythonStatus = await checkPythonSetup();
   
   if (!pythonStatus.installed) {
-    console.error('Python no encontrado!');
+    console.error('❌ Python no encontrado!');
+    console.log('Instala Python 3.8+ desde https://python.org');
     return;
   }
+  
+  console.log(`✅ ${pythonStatus.message}`);
   
   // Convertir archivo
   try {
@@ -168,15 +190,23 @@ async function main() {
       output: 'data/productos.parquet'
     });
     
-    console.log('✅ Conversión completa');
-    console.log(`📊 Filas: ${result.rows}`);
-    console.log(`📁 Tamaño original: ${result.input_size} bytes`);
-    console.log(`📦 Tamaño Parquet: ${result.output_size} bytes`);
-    console.log(`🗜️  Compresión: ${result.compression_ratio}%`);
+    console.log('\n📊 Resultados:');
+    console.log(`   Filas: ${result.rows.toLocaleString()}`);
+    console.log(`   Columnas: ${result.columns}`);
+    console.log(`   Tamaño original: ${formatBytes(result.input_size)}`);
+    console.log(`   Tamaño Parquet: ${formatBytes(result.output_size)}`);
+    console.log(`   Compresión: ${result.compression_ratio}%`);
     
   } catch (error) {
     console.error('❌ Error:', error.message);
   }
+}
+
+function formatBytes(bytes) {
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  if (bytes === 0) return '0 Bytes';
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 }
 
 main();
@@ -218,17 +248,18 @@ El resultado incluye información detallada:
 
 ## 🔍 Casos de uso
 
-### Data Engineering
+### 1. Data Engineering - Pipeline ETL
 ```bash
-# Pipeline ETL: convierte logs diarios
-for file in logs/*.log; do
-  npx ultra-parquet-converter "$file" -o "parquet/${file%.log}.parquet"
-done
+# Convierte logs diarios a Parquet
+ultra-parquet-converter batch "logs/2024-11-*.log" -o parquet/logs/
+
+# Procesa múltiples fuentes
+ultra-parquet-converter batch "raw-data/*.csv" -o processed/
 ```
 
-### Data Science
+### 2. Data Science - Preparación de datasets
 ```javascript
-// Preprocesa datasets para ML
+// Preprocesa datasets para Machine Learning
 const datasets = ['train.csv', 'test.csv', 'validation.csv'];
 
 for (const dataset of datasets) {
@@ -238,10 +269,20 @@ for (const dataset of datasets) {
 }
 ```
 
-### Analytics
+### 3. Analytics - Optimización de reportes
 ```bash
-# Convierte reportes Excel para análisis más rápidos
-npx ultra-parquet-converter reports/monthly_sales.xlsx -o analytics/sales.parquet
+# Convierte reportes Excel pesados
+ultra-parquet-converter batch "reports/*.xlsx" -o analytics/
+
+# Resultado: Consultas 100x más rápidas
+```
+
+### 4. Archivado - Reducción de almacenamiento
+```bash
+# Comprime archivos históricos
+ultra-parquet-converter batch "archive/*.csv" --compression brotli -o compressed/
+
+# Ahorro típico: 80-90% de espacio
 ```
 
 ---
@@ -267,64 +308,75 @@ Convierte un archivo a formato Parquet.
 Verifica que Python esté instalado correctamente.
 
 **Retorna:** `Promise<Object>` con estado de la instalación
-
 ```javascript
 {
   installed: true,
-  message: "Python está instalado"
+  message: "Python está instalado (comando: py)"
 }
 ```
+
+> 💡 **Nota**: Esta función detecta automáticamente si el sistema usa `py`, `python` o `python3`
 
 ---
 
 ## 🐛 Solución de problemas
 
 ### Python no encontrado
-
 ```bash
 # Verifica la instalación
-python --version
+py --version       # Windows
+python --version   # Linux/Windows
+python3 --version  # Linux/macOS
 
 # Si no está instalado:
+# Windows: https://python.org (marca "Add to PATH")
 # macOS: brew install python
-# Ubuntu: sudo apt install python python-pip
-# Windows: descargar de python.org
+# Ubuntu: sudo apt install python3 python3-pip
 ```
 
 ### Dependencias Python faltantes
-
 ```bash
-# Reinstalar dependencias
-npx ultra-parquet-converter setup
+# Reinstalar dependencias (automático)
+ultra-parquet-converter setup
 
 # O manualmente
 pip install --upgrade pandas pyarrow openpyxl lxml
+
+# En Linux/macOS puede ser:
+pip3 install --upgrade pandas pyarrow openpyxl lxml
+```
+
+### Error "MODULE_NOT_FOUND"
+```bash
+# Instalar dependencias de Node.js
+npm install
+
+# Si usas el paquete globalmente
+npm install -g ultra-parquet-converter
 ```
 
 ### Error de memoria con archivos grandes
-
-Para archivos muy grandes (>1GB), considera procesarlos por chunks en Python directamente o aumentar la memoria de Node.js:
-
 ```bash
-NODE_OPTIONS="--max-old-space-size=4096" npx ultra-parquet-converter huge_file.csv
+# Aumentar memoria de Node.js
+NODE_OPTIONS="--max-old-space-size=4096" ultra-parquet-converter convert huge_file.csv
 ```
 
 ---
 
 ## 🏗️ Estructura del proyecto
-
 ```
 ultra-parquet-converter/
 ├── src/
-│   ├── index.js          # API JavaScript principal
-│   ├── cli.js            # Interfaz de línea de comandos
+│   ├── index.js          # API JavaScript (auto-detecta Python)
+│   ├── cli.js            # CLI con comandos avanzados
 │   └── setup.js          # Script post-instalación
 ├── python/
-│   ├── converter.py      # Conversor Python (backend)
+│   ├── converter.py      # Motor de conversión (Pandas + PyArrow)
 │   └── requirements.txt  # Dependencias Python
 ├── test/
-│   └── test.js           # Tests de ejemplo
+│   └── test.js           # Tests automatizados
 ├── package.json
+├── LICENSE
 └── README.md
 ```
 
@@ -367,18 +419,37 @@ Apache-2.0 License - ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
-## 📈 Roadmap
+## 📈 Changelog
+
+### v1.1.0 (Actual)
+- ✨ Soporte para TSV, PSV y DSV
+- 🚀 Comando `batch` para conversión masiva
+- 📋 Comando `info` para ver detalles de archivos
+- 🔄 Auto-detección de Python (`py`, `python`, `python3`)
+- ⚙️ Opciones de compresión personalizables
+
+### v1.0.0
+- 🎉 Lanzamiento inicial
+- ✅ Soporte para CSV, XLSX, JSON, XML, TXT, LOG
+
+Ver [CHANGELOG.md](CHANGELOG.md) completo
+
+---
+
+## 🗺️ Roadmap
 
 - [ ] Soporte para múltiples hojas en Excel
-- [ ] Conversión batch de directorios
-- [ ] Streaming para archivos gigantes
+- [ ] Streaming para archivos gigantes (>5GB)
 - [ ] Integración con S3/Cloud Storage
 - [ ] GUI web opcional
 - [ ] Plugins para formatos personalizados
+- [ ] Soporte para Avro y ORC
 
 ---
 
 **Hecho con ❤️ para la comunidad de Data Engineering**
-- **Creador: Hepein Oficial x Brashkie**
 
-⭐ Si te gusta este proyecto, dale una estrella en GitHub!
+**Creador: Hepein Oficial x Brashkie**
+
+⭐ Si te gusta este proyecto, ¡dale una estrella en [GitHub](https://github.com/Brashkie/ultra-parquet-converter)!
+
