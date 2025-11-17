@@ -25,7 +25,7 @@ except ImportError:
 class ParquetConverter:
     """Conversor universal a formato Parquet"""
     
-    SUPPORTED_FORMATS = ['csv', 'xlsx', 'xls', 'json', 'xml', 'txt', 'log']
+    SUPPORTED_FORMATS = ['csv', 'tsv', 'psv', 'dsv', 'xlsx', 'xls', 'json', 'xml', 'txt', 'log']
     
     def __init__(self, input_file, output_file=None, verbose=False):
         self.input_file = Path(input_file)
@@ -57,21 +57,40 @@ class ParquetConverter:
     def _read_csv(self):
         """Lee archivo CSV con optimizaciones"""
         self._log(f"Leyendo CSV: {self.input_file}")
-        
-        # Optimización: usa engine C (más rápido) con detección automática
+        return self._read_delimited_file(',')
+    
+    def _read_tsv(self):
+        """Lee archivo TSV (Tab-Separated Values)"""
+        self._log(f"Leyendo TSV: {self.input_file}")
+        return self._read_delimited_file('\t')
+    
+    def _read_psv(self):
+        """Lee archivo PSV (Pipe-Separated Values)"""
+        self._log(f"Leyendo PSV: {self.input_file}")
+        return self._read_delimited_file('|')
+    
+    def _read_dsv(self):
+        """Lee archivo DSV (Delimiter-Separated Values) con auto-detección"""
+        self._log(f"Leyendo DSV: {self.input_file}")
+        return self._read_delimited_file(None)  # Auto-detect
+    
+    def _read_delimited_file(self, delimiter):
+        """Lee archivos delimitados con optimizaciones"""
         try:
-            # Primero detecta el separador
-            with open(self.input_file, 'r', encoding='utf-8') as f:
-                first_line = f.readline()
-            
-            # Detecta delimitador común
-            delimiters = [',', '\t', ';', '|']
-            sep = max(delimiters, key=lambda d: first_line.count(d))
+            if delimiter is None:
+                # Auto-detección de delimitador
+                with open(self.input_file, 'r', encoding='utf-8') as f:
+                    first_line = f.readline()
+                
+                # Detecta delimitador más común
+                delimiters = [',', '\t', ';', '|', ':']
+                delimiter = max(delimiters, key=lambda d: first_line.count(d))
+                self._log(f"Delimitador detectado: '{delimiter}'")
             
             # Lee con engine C (hasta 5x más rápido que Python)
             df = pd.read_csv(
                 self.input_file,
-                sep=sep,
+                sep=delimiter,
                 engine='c',  # Engine más rápido
                 encoding='utf-8',
                 low_memory=False  # Mejor inferencia de tipos
@@ -188,6 +207,12 @@ class ParquetConverter:
             # Lee según el tipo de archivo
             if self.file_type == 'csv':
                 df = self._read_csv()
+            elif self.file_type == 'tsv':
+                df = self._read_tsv()
+            elif self.file_type == 'psv':
+                df = self._read_psv()
+            elif self.file_type == 'dsv':
+                df = self._read_dsv()
             elif self.file_type in ['xlsx', 'xls']:
                 df = self._read_xlsx()
             elif self.file_type == 'json':
