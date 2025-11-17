@@ -3,6 +3,30 @@ const path = require('path');
 const fs = require('fs');
 
 /**
+ * Obtiene el comando de Python disponible en el sistema
+ * Prueba en orden: py, python3, python
+ * @returns {Promise<string>} - Comando de Python que funciona
+ */
+async function getPythonCommand() {
+  const commands = ['py', 'python3', 'python'];
+  
+  for (const cmd of commands) {
+    try {
+      await new Promise((resolve, reject) => {
+        const proc = spawn(cmd, ['--version'], { stdio: 'ignore' });
+        proc.on('close', (code) => code === 0 ? resolve() : reject());
+        proc.on('error', reject);
+      });
+      return cmd; // Si funciona, retorna este comando
+    } catch {
+      continue; // Si falla, prueba el siguiente
+    }
+  }
+  
+  throw new Error('No se encontró Python instalado (intentado: py, python3, python)');
+}
+
+/**
  * Convierte un archivo a formato Parquet
  * @param {string} inputFile - Ruta del archivo de entrada
  * @param {Object} options - Opciones de conversión
@@ -11,10 +35,18 @@ const fs = require('fs');
  * @returns {Promise<Object>} - Resultado de la conversión
  */
 async function convertToParquet(inputFile, options = {}) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     // Valida que el archivo exista
     if (!fs.existsSync(inputFile)) {
       return reject(new Error(`Archivo no encontrado: ${inputFile}`));
+    }
+
+    // Obtiene el comando de Python disponible
+    let pythonCmd;
+    try {
+      pythonCmd = await getPythonCommand();
+    } catch (error) {
+      return reject(error);
     }
 
     // Construye los argumentos para Python
@@ -30,7 +62,7 @@ async function convertToParquet(inputFile, options = {}) {
     }
 
     // Ejecuta el script Python
-    const pythonProcess = spawn('python3', args, {
+    const pythonProcess = spawn(pythonCmd, args, {
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
@@ -81,30 +113,18 @@ async function convertToParquet(inputFile, options = {}) {
  * @returns {Promise<Object>} - Estado de la instalación
  */
 async function checkPythonSetup() {
-  return new Promise((resolve) => {
-    const pythonProcess = spawn('python', ['--version']);
-
-    pythonProcess.on('close', (code) => {
-      if (code !== 0) {
-        resolve({
-          installed: false,
-          message: 'Python no está instalado o no está en el PATH'
-        });
-      } else {
-        resolve({
-          installed: true,
-          message: 'Python está instalado'
-        });
-      }
-    });
-
-    pythonProcess.on('error', () => {
-      resolve({
-        installed: false,
-        message: 'Python no está instalado o no está en el PATH'
-      });
-    });
-  });
+  try {
+    const pythonCmd = await getPythonCommand();
+    return {
+      installed: true,
+      message: `Python está instalado (comando: ${pythonCmd})`
+    };
+  } catch (error) {
+    return {
+      installed: false,
+      message: error.message
+    };
+  }
 }
 
 module.exports = {
