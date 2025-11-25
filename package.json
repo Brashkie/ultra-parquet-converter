@@ -1,7 +1,7 @@
 {
   "name": "ultra-parquet-converter",
-  "version": "1.0.1",
-  "description": "Universal file to Parquet converter with auto-detection. Supports CSV, XLSX, JSON, XML, TXT, and LOG files. Powered by Python and Apache Arrow.",
+  "version": "1.1.0",
+  "description": "Conversor profesional de archivos a Parquet con streaming, auto-repair y 19 formatos soportados. Procesa archivos de 1GB-20GB sin explotar memoria.",
   "main": "src/index.js",
   "bin": {
     "ultra-parquet-converter": "./src/cli.js"
@@ -14,16 +14,39 @@
     "parquet",
     "converter",
     "csv",
+    "tsv",
+    "psv",
+    "dsv",
     "xlsx",
     "json",
+    "ndjson",
+    "jsonl",
     "xml",
-    "apache-arrow",
-    "data-conversion",
-    "cli",
+    "yaml",
+    "html",
+    "feather",
+    "arrow",
+    "orc",
+    "avro",
+    "sqlite",
+    "spss",
+    "sas",
+    "stata",
+    "streaming",
     "bigdata",
-    "python"
+    "data-engineering",
+    "apache-arrow",
+    "pandas",
+    "data-science",
+    "etl",
+    "analytics",
+    "big-data",
+    "file-converter",
+    "data-conversion",
+    "auto-repair",
+    "benchmarking"
   ],
-  "author": "Brashkie",
+  "author": "Hepein Oficial x Brashkie <electronicatodo2006@gmail.com>",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=18.0.0"
@@ -40,5 +63,12 @@
   "bugs": {
     "url": "https://github.com/Brashkie/ultra-parquet-converter/issues"
   },
-  "homepage": "https://github.com/Brashkie/ultra-parquet-converter#readme"
+  "homepage": "https://github.com/Brashkie/ultra-parquet-converter#readme",
+  "files": [
+    "src/",
+    "python/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ]
 }
