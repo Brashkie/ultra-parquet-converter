@@ -1,600 +1,361 @@
 # Changelog
 
-Todos los cambios notables de este proyecto se documentarán en este archivo.
+All notable changes to this project will be documented in this file.
 
-El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
-y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [1.3.0] - 2025-04-17
+
+### 🎉 Release — TypeScript Hybrid Architecture + Full Test Coverage
+
+This release completes the TypeScript migration started in v1.3.0-dev, adding 4 intelligent backends, parallel processing, adaptive compression, and a fully tested codebase with 148+ passing tests.
+
+---
+
+### ✨ Added
+
+#### 4-Backend Architecture with Auto-Selection
+- **Native Python** (`native-python`) — system Python, fastest for general use
+- **Portable Python** (`portable-python`) — auto-downloads Python 3.11 (~30MB on Windows, ~50MB on Linux/macOS) on first run; no manual install required
+- **Pyodide** (`pyodide`) — WebAssembly backend, zero Python required, works in browser
+- **Cython** (`cython`) — compiled `.pyd`/`.so` modules, ultra-fast for large files (>50MB)
+
+Auto-selection priority: Cython (large files >50MB) → Native Python → Portable Python → Pyodide.
+
+#### Python Engine Improvements (`python/converter_advanced.py`)
+- `ProcessPoolExecutor` for parallel CSV processing by row ranges
+- `ThreadPoolExecutor` for concurrent chunk processing
+- `AdaptiveCompressor` — selects best algorithm (snappy/zstd/lz4/gzip/brotli) based on data type and file size
+- `--workers <n>` argparse argument (passed from TypeScript)
+- `--compression <type>` argparse argument with validation
+- `multiprocessing.freeze_support()` for Windows compatibility
+
+#### Cython Modules (`cython/`)
+- `fast_csv.pyx` — C-level CSV parser with `-O3 -march=native`
+- `fast_parser.pyx` — C-level data parser
+- `setup.py` — Cython build with `boundscheck=False`, `wraparound=False`
+- Build: `npm run build:cython`
+- Detection of `.pyd` (Windows) and `.so` (Linux/macOS) compiled modules
+
+#### CLI Improvements (`src/cli.ts`)
+- Progress bar via `cli-progress` for files >1MB
+- `watch <directory>` command — auto-converts on file change with debounce + SIGINT handler + periodic stats
+- `backends` command — lists all backends and their availability in the current environment
+- `--force-backend <type>` option — `native-python | portable-python | pyodide | cython`
+- `--workers <n>` option
+- `--compression <type>` option — `snappy | zstd | lz4 | gzip | brotli | adaptive`
+
+#### PyodideBackend Improvements (`src/backends/pyodide-backend.ts`)
+- Dependency injection via constructor: `new PyodideBackend(loader?, logger?)`
+- `PyodideLoader` type — injectable loader for clean tests without module hacks
+- `PyodideLogger` interface — injectable logger (`info`, `warn`, `error`); default uses `console`
+- Thread-safe `initPromise` — prevents race conditions on concurrent `initialize()` calls
+- `initPromise` reset on failure — allows retries after transient errors
+- Defensive `JSON.parse` with descriptive error: `Pyodide returned invalid JSON: ...`
+- `success=false` check before spread — no longer silences Python-side errors
+- No double-wrap protection on `catch` block
+- Python pattern: `_result_json = json.dumps(_result)` + `_result_json` as final expression — robust regardless of future code additions
+- `JSON.stringify().slice(1,-1)` for data escaping — handles Unicode, backslashes, control characters safely
+- `buffer.seek(0)` before Parquet fallback in binary conversion
+- `max(len(...), 1)` to prevent `ZeroDivisionError` on empty inputs
+- Typed interfaces: `PyodideLoader`, `PyodideLoadOptions`, `PyodideInstance`, `PyodideConversionResult`
+
+#### CythonBackend (`src/backends/cython-backend.ts`)
+- `safeParseJSON(str)` helper — distinguishes empty string (returns `{}`) from invalid JSON (throws)
+- All error paths: `'Python no encontrado'`, `'Módulos Cython no compilados'`, `'Script Python no encontrado'`, `'Respuesta inválida'`, `'No se pudo ejecutar Python'`
+- Detects compiled modules at `.pyd` (Windows) and `.so` (Linux/macOS)
+
+#### NativePythonBackend (`src/backends/native-python.ts`)
+- `VALID_COMPRESSIONS` array with validation + fallback warning to `adaptive`
+- `--workers` and `--compression` arguments passed to Python script
+
+#### BackendSelector (`src/backends/selector.ts`)
+- `forceBackend` as priority 0 in `selectBackend()` — always respected
+- `reset()` method for test isolation
+
+#### Test Suite (148+ tests, 7 suites)
+- `test/backends.test.ts` — PortablePython, Pyodide, Cython with full mocks (~80 tests)
+- `test/native-python.test.ts` — real Python execution (11 tests)
+- `test/native-python-mocked.test.ts` — all internal branches mocked (18 tests)
+- `test/selector.test.ts` — all 8 `selectBackend` branches, mocked `detectEnvironment` (18 tests)
+- `test/integration.test.ts` — end-to-end real conversion (21 tests)
+- `test/download.test.ts` — full mock coverage: fs, child_process, node-fetch, extract-zip, cli-progress (~25 tests)
+- `test/detect.test.ts` — all platform/cython/portable branches mocked (~20 tests)
+
+#### Package Scripts
+- `npm run test:coverage` / `npm run coverage` — jest with coverage report
+- `npm run coverage:open` — coverage + opens browser
+- `npm run test:watch` — jest watch mode
+- `npm run lint` — TypeScript type-check only (`tsc --noEmit`)
+- `npm run clean:all` — removes `dist/`, `coverage/`, `node_modules/`
+
+#### Documentation
+- `README.md` rewritten in English — full API docs, backend table, architecture, benchmarks
+- `README.es.md` — Spanish version
+- `IMPLEMENTATION_STATUS.md` — updated to reflect 100% completion
+- `.gitignore` — comprehensive: Node, Python, Cython, OS, IDE, coverage
+- `.npmignore` — excludes `src/`, `test/`, `coverage/`, `tsconfig.json`, `.venv/`
+
+---
+
+### 🚀 Improved
+
+- **Python version**: standardized to **Python 3.11** for all backends — ensures ABI compatibility across pandas, pyarrow, numpy, and Cython modules
+- **Installation**: added `.whl` (wheel) offline install option for air-gapped environments
+- **TypeScript types**: all `any` replaced with explicit typed interfaces across all backends
+- **Error messages**: descriptive errors throughout — no more generic `"Error"` without context
+- **Constants extracted**: `PYODIDE_CDN`, `REQUIRED_PACKAGES`, `LIMITATIONS` as typed `as const` arrays
+
+---
+
+### 🐛 Fixed
+
+- `PyodideBackend`: `json.dumps()` inside `try/except` blocks does not return a value to `runPythonAsync` — fixed by assigning `_result` at module level and using `_result_json` as the final expression
+- `PyodideBackend`: race condition where concurrent `initialize()` calls triggered `loadPyodide` multiple times simultaneously
+- `PyodideBackend`: `initPromise` leaked as a permanently rejected promise after failure — now resets to `null` in `.catch()`
+- `download.ts`: `Readable.fromWeb()` removed — `node-fetch@2` returns a Node.js Readable directly, no conversion needed
+- `jest.config.cjs`: renamed from `.json` — required JS syntax for `moduleNameMapper`
+- TypeScript downgraded to 5.4.5 for `ts-jest` compatibility
+
+---
+
+### 🔄 Breaking Changes
+
+None. The JavaScript/TypeScript API is 100% backward compatible with v1.1.0.
+
+---
+
+### 📦 Dependencies
+
+#### New
+```json
+"node-fetch": "^2.7.0",
+"extract-zip": "^2.0.1",
+"cli-progress": "^3.12.0",
+"pyodide": "^0.24.1"
+```
+
+#### Dev
+```json
+"ts-jest": "^29.1.1",
+"typescript": "^5.4.5"
+```
+
+---
+
+### 📊 Development Stats
+
+- **Test suites**: 7
+- **Tests**: 148+
+- **Lines added**: ~5,000
+- **New files**: 15+
+- **Build**: ✅ zero TypeScript errors
+- **Coverage**: ~91% statements across `src/backends/`
 
 ---
 
 ## [1.1.0] - 2025-11-25
 
-### 🎉 Release Mayor - Edición Profesional
+### 🎉 Release Mayor — Professional Edition
 
-Esta es la actualización más grande hasta la fecha, transformando ultra-parquet-converter en una herramienta profesional de nivel enterprise con soporte para 19 formatos, streaming, auto-reparación y mucho más.
+Biggest update to date, transforming ultra-parquet-converter into a professional enterprise-grade tool with support for 19 formats, streaming, auto-repair, and more.
 
 ---
 
-### ✨ Añadido
+### ✨ Added
 
-#### 10 Nuevos Formatos Soportados
+#### 10 New Supported Formats
 
-**Formatos Estructurados:**
-- **HTML** (`.html`) - Extrae tablas HTML automáticamente
-- **NDJSON/JSON Lines** (`.ndjson`, `.jsonl`) - JSON streaming line-by-line
-- **YAML** (`.yaml`, `.yml`) - Archivos de configuración YAML
+**Structured:**
+- HTML (`.html`) — extracts HTML tables automatically
+- NDJSON/JSON Lines (`.ndjson`, `.jsonl`) — streaming JSON line-by-line
+- YAML (`.yaml`, `.yml`) — configuration files
 
-**Formatos Big Data:**
-- **Feather/Arrow** (`.feather`, `.arrow`) - Apache Arrow format
-- **ORC** (`.orc`) - Optimized Row Columnar format
-- **Avro** (`.avro`) - Apache Avro format
+**Big Data:**
+- Feather/Arrow (`.feather`, `.arrow`) — Apache Arrow format
+- ORC (`.orc`) — Optimized Row Columnar
+- Avro (`.avro`) — Apache Avro
 
-**Bases de Datos:**
-- **SQLite** (`.sqlite`, `.db`) - Bases de datos SQLite (lee primera tabla)
+**Databases:**
+- SQLite (`.sqlite`, `.db`) — reads first table
 
-**Formatos Estadísticos:**
-- **SPSS** (`.sav`) - IBM SPSS Statistics data files
-- **SAS** (`.sas7bdat`) - SAS datasets
-- **Stata** (`.dta`) - Stata data files
+**Statistical:**
+- SPSS (`.sav`) — IBM SPSS Statistics
+- SAS (`.sas7bdat`) — SAS datasets
+- Stata (`.dta`) — Stata data files
 
-#### Auto-detección Inteligente por Contenido
+#### Smart Content-Based Auto-detection
+- Magic bytes: SQLite, Parquet, Arrow/Feather, ORC, Avro
+- Structure: HTML tags, XML headers, JSON objects, NDJSON, YAML
+- Delimiters: auto-detects `,` `\t` `;` `|` `:` for extensionless files
 
-Además de la detección por extensión, ahora detecta formatos analizando el contenido del archivo:
+#### Streaming Mode for Giant Files
+- Chunk processing: 100,000 rows per chunk
+- Constant memory: ~300MB regardless of file size
+- Auto-activation for files >100MB
 
-- **Magic bytes**: SQLite, Parquet, Arrow/Feather, ORC, Avro
-- **Estructura de texto**: HTML tags, XML headers, JSON objects, NDJSON lines, YAML format
-- **Delimitadores**: Auto-detecta `,` `\t` `;` `|` `:` para archivos sin extensión
+#### Auto-repair
+- Removes empty columns
+- Auto-converts types (`"123"` string → `123` int64)
+- Removes duplicate rows
+- Skips corrupt CSV lines gracefully
 
-```python
-# Archivo sin extensión o extensión incorrecta
-archivo.dat → Detecta automáticamente como CSV por contenido
-archivo.txt → Detecta tabs → Reconoce como TSV
-```
+#### Auto-normalize
+- Normalizes column names (`"Customer ID"` → `"customer_id"`)
+- Removes constant columns
 
-#### Modo Streaming para Archivos Gigantes
+#### New CLI Commands
+- `analyze` — file structure inspection without converting
+- `benchmark` — multi-iteration performance measurement
+- `validate` — Parquet integrity verification
 
-Procesa archivos de 1GB, 5GB, 20GB+ sin explotar la memoria:
-
-- **Procesamiento por chunks**: 100,000 filas por vez
-- **Memoria constante**: ~300MB independientemente del tamaño del archivo
-- **Activación automática**: Para archivos >100MB
-- **Activación manual**: Flag `--streaming`
-
-```bash
-# Archivo de 20GB - solo usa 300MB de RAM
-ultra-parquet-converter convert huge_file.csv --streaming
-```
-
-**Benchmarks:**
-- 5GB CSV: 280 MB RAM (sin streaming: Out of Memory ❌)
-- 10GB LOG: 290 MB RAM (sin streaming: Crash ❌)
-- 20GB TSV: 300 MB RAM (sin streaming: Imposible ❌)
-
-#### Auto-reparación de Datos
-
-Sistema inteligente que detecta y corrige problemas automáticamente:
-
-**1. Elimina columnas completamente vacías**
-```
-Entrada: 20 columnas (5 completamente vacías)
-Salida:  15 columnas (ahorrado espacio + claridad)
-```
-
-**2. Detecta y convierte tipos automáticamente**
-```
-Columna "cantidad": ["123", "456", "789"]  (string)
-                 →  [123, 456, 789]         (int64)
-```
-
-**3. Elimina filas duplicadas**
-```
-Entrada: 100,000 filas (3,500 duplicados exactos)
-Salida:  96,500 filas únicas
-```
-
-**4. Salta líneas corruptas en CSVs**
-```
-Línea 1: "a","b","c"      ✓ OK
-Línea 2: "1","2"          ✗ Saltada (columnas inconsistentes)
-Línea 3: "3","4","5"      ✓ OK
-```
-
-**Desactivar:** `--no-repair`
-
-#### Auto-normalización de Datos
-
-Normaliza automáticamente la estructura de los datos:
-
-**1. Normaliza nombres de columnas**
-```
-"Cliente ID"    → "cliente_id"
-"Fecha Venta"   → "fecha_venta"
-"PRECIO TOTAL"  → "precio_total"
-"  espacios  "  → "espacios"
-```
-
-**2. Elimina columnas constantes**
-```
-Columna "status" = "active" en TODAS las filas
-→ Eliminada automáticamente (ocupa espacio innecesario)
-```
-
-**Desactivar:** `--no-normalize`
-
-#### Nuevos Comandos CLI
-
-**`analyze` - Análisis de Archivos**
-```bash
-ultra-parquet-converter analyze datos.csv
-```
-Muestra:
-- Tipo detectado
-- Tamaño del archivo
-- Número de filas y columnas
-- Schema detallado
-- Preview de primeras filas
-
-**`benchmark` - Medición de Performance**
-```bash
-ultra-parquet-converter benchmark test.csv --iterations 5
-```
-Ejecuta múltiples conversiones y calcula:
-- Tiempo promedio, mínimo, máximo
-- Velocidad (filas/segundo)
-- Throughput (MB/segundo)
-
-**`validate` - Validación de Parquet**
-```bash
-ultra-parquet-converter validate output.parquet
-```
-Verifica:
-- Integridad del archivo
-- Número de filas y columnas
-- Compresión utilizada
-- Versión de Parquet
-
-#### Opciones Avanzadas CLI
-
-**Opciones globales:**
-- `--streaming` - Activar modo streaming
-- `--no-repair` - Desactivar auto-reparación
-- `--no-normalize` - Desactivar auto-normalización
-- `--benchmark` - Mostrar métricas de performance
-
-**Batch mejorado:**
-- Estadísticas agregadas (filas totales, espacio ahorrado)
-- Velocidad promedio del lote
-- Tiempo total de procesamiento
-
-#### Estadísticas Avanzadas en Resultado
-
-El objeto de retorno ahora incluye:
-
+#### Advanced Result Statistics
 ```javascript
 {
-  // ... campos anteriores ...
-  elapsed_time: 2.34,           // Tiempo en segundos
-  chunks_processed: 15,         // Chunks procesados (streaming)
-  errors_fixed: 23,             // Errores corregidos (auto-repair)
-  columns_removed: 5,           // Columnas eliminadas (auto-normalize)
-  streaming_mode: true,         // Si se usó streaming
-  file_type: "csv"              // Tipo detectado
+  elapsed_time: 2.34,
+  chunks_processed: 15,
+  errors_fixed: 23,
+  columns_removed: 5,
+  streaming_mode: true,
+  file_type: "csv"
 }
 ```
 
-#### Funciones API Nuevas
+---
 
-```javascript
-// Analizar archivo
-const analysis = await analyzeFile('datos.csv');
+### 🚀 Improved
 
-// Benchmark
-const benchmark = await benchmarkConversion('test.csv', {
-  streaming: false
-});
-
-// Validar Parquet
-const validation = await validateParquet('output.parquet');
-```
+- Python multi-command detection: tries `py` → `python3` → `python`
+- CSV engine: C engine preferred (5x faster)
+- Parquet write: row groups 1M, dictionary encoding, write statistics
+- Auto-categorization: columns with <50% unique values → `category` type
 
 ---
 
-### 🚀 Mejorado
+### 🐛 Fixed
 
-#### Python Multi-comando
+- Windows: Error 9009 "Python not found" — now detects `py` launcher automatically
+- Streaming: crash on final chunks, memory leak, writer not closed correctly
+- CLI: batch mode not creating output directory, verbose flag not propagating
 
-Auto-detecta el comando Python disponible en el sistema:
-- Prueba `py` (Windows Python Launcher)
-- Prueba `python3` (Linux/macOS)
-- Prueba `python` (fallback)
+---
 
-**Antes (v1.0.3):**
-```
-Error: python3 not found  ❌ (en Windows)
-```
+### 🔄 Breaking Changes
 
-**Ahora (v1.1.0):**
-```
-✓ Python instalado (comando: py)  ✅
-```
-
-#### CLI Completamente Renovado
-
-**Mejor organización:**
-- Comandos agrupados lógicamente
-- Ayuda más clara y descriptiva
-- Mensajes de error más útiles
-
-**UI mejorada:**
-- Progress spinners más informativos
-- Estadísticas formateadas elegantemente
-- Colores consistentes y semánticos
-- Tiempos formateados (ej: `2m 34s` en vez de `154s`)
-
-**Ejemplos en ayuda:**
+**CLI command renamed:**
 ```bash
-ultra-parquet-converter --help
-# Muestra ejemplos de uso para cada comando
+# Before (v1.0.3):
+ultra-parquet-converter archivo.csv
+
+# After (v1.1.0):
+ultra-parquet-converter convert archivo.csv
 ```
 
-#### Performance Optimizado
-
-**Lectura de CSV:**
-- Detección de delimitador mejorada (ahora incluye `:`)
-- Engine C preferido (5x más rápido que Python)
-- Fallback inteligente si engine C falla
-
-**Escritura Parquet:**
-- Row groups optimizados (1M filas)
-- Dictionary encoding activado
-- Write statistics habilitado
-- Data page size optimizado (1MB)
-
-**Categorización automática:**
-- Columnas con <50% valores únicos → tipo `category`
-- Mejor compresión (hasta 10% adicional)
-
-#### Manejo de Errores Robusto
-
-**CSVs corruptos:**
-- Opción `on_bad_lines='skip'` automática
-- Continúa procesando en lugar de fallar
-- Reporta líneas saltadas
-
-**Archivos grandes:**
-- Detección automática de necesidad de streaming
-- Advertencias proactivas
-- Sugerencias de optimización
-
-#### Compatibilidad Multiplataforma
-
-**Windows:**
-- Soporte completo para `py` launcher
-- Rutas con espacios manejadas correctamente
-- Encodings Windows (CP1252, etc.)
-
-**Linux/macOS:**
-- Soporte para `python3` estándar
-- Permisos ejecutables correctos
-- Path resolution robusto
+**Python script renamed:**
+```
+python/converter.py  →  python/converter_advanced.py
+```
 
 ---
 
-### 🐛 Corregido
-
-#### Windows
-- ✅ Error 9009 "Python not found" (ahora detecta `py` automáticamente)
-- ✅ Rutas con espacios causan fallos
-- ✅ Encodings Windows no reconocidos
-
-#### Streaming
-- ✅ Crash al procesar chunks finales
-- ✅ Memory leak en procesamiento largo
-- ✅ Writer no se cierra correctamente
-
-#### Auto-detección
-- ✅ Archivos sin extensión no se procesan
-- ✅ Falsos positivos en detección de JSON
-- ✅ XML malformado causa crash
-
-#### CLI
-- ✅ Batch mode no crea directorio de salida
-- ✅ Verbose flag no se propaga correctamente
-- ✅ Progress spinner se queda colgado en error
-
-#### API
-- ✅ Promise rejection no manejado en algunos casos
-- ✅ Errores Python no se parsean correctamente
-- ✅ Timeout en archivos muy grandes
-
----
-
-### 🔄 Cambios que Rompen Compatibilidad
-
-#### ⚠️ Python Backend Renombrado
-
-**Antes (v1.0.3):**
-```
-python/converter.py
-```
-
-**Ahora (v1.1.0):**
-```
-python/converter_advanced.py
-```
-
-**Impacto:** Si usabas el script Python directamente, actualiza las rutas.
-
-**Migración:** El paquete NPM maneja esto automáticamente.
-
----
-
-### 📦 Dependencias
-
-#### Nuevas Dependencias Python
-
+### 📦 New Python Dependencies
 ```txt
-# Nuevas en v1.1.0
-pyyaml>=6.0              # YAML support
-fastavro>=1.8.0          # Apache Avro
-pyreadstat>=1.2.0        # SPSS, SAS, Stata
-fastparquet>=2023.10.0   # Parquet alternativo (opcional)
-```
-
-#### Dependencias Actualizadas
-
-```txt
-# Actualizadas
-pandas>=2.0.0            # v1.5.0 → v2.0.0
-pyarrow>=14.0.0          # v12.0.0 → v14.0.0
-numpy>=1.24.0            # v1.23.0 → v1.24.0
-```
-
----
-
-### 📊 Estadísticas de Desarrollo
-
-- **Commits**: 45+
-- **Líneas añadidas**: +1,800
-- **Líneas eliminadas**: -200
-- **Archivos modificados**: 8
-- **Archivos nuevos**: 3
-- **Tests añadidos**: 15+
-
----
-
-### 🎯 Migración desde v1.1.0
-
-#### API JavaScript - Sin Cambios
-
-El API JavaScript es 100% compatible hacia atrás:
-
-```javascript
-// Código v1.1.0 funciona en v1.1.0 sin cambios
-const result = await convertToParquet('datos.csv', {
-  output: 'salida.parquet',
-  verbose: true
-});
-```
-
-#### CLI - Actualización Requerida
-
-**ANTES (v1.0.3) - Ya no funciona:**
-```bash
-ultra-parquet-converter archivo.csv  ❌
-```
-
-**AHORA (v1.1.0) - Usar comando `convert`:**
-```bash
-ultra-parquet-converter convert archivo.csv  ✅
-# O alias corto
-ultra-parquet-converter c archivo.csv  ✅
-```
-
-**Script de migración:**
-```bash
-# Reemplaza en tus scripts
-sed -i 's/ultra-parquet-converter \([^ ]*\.csv\)/ultra-parquet-converter convert \1/g' *.sh
-```
-
-#### Nuevas Opciones Disponibles
-
-Puedes empezar a usar las nuevas features inmediatamente:
-
-```bash
-# Auto-reparación (activado por defecto, desactivar si no quieres)
-ultra-parquet-converter convert datos.csv --no-repair
-
-# Streaming para archivos grandes
-ultra-parquet-converter convert huge.csv --streaming
-
-# Benchmark integrado
-ultra-parquet-converter convert test.csv --benchmark
+pyyaml>=6.0
+fastavro>=1.8.0
+pyreadstat>=1.2.0
 ```
 
 ---
 
 ## [1.0.3] - 2025-11-16
 
-### ✨ Añadido
+### ✨ Added
 
-#### Nuevos Formatos (3)
-- **TSV** (Tab-Separated Values)
-- **PSV** (Pipe-Separated Values)
-- **DSV** (Delimiter-Separated Values con auto-detección)
+- **3 new formats**: TSV, PSV, DSV with auto-delimiter detection
+- CLI command `convert` with alias `c`
+- CLI command `batch` with alias `b` for bulk conversion
+- CLI command `info` with alias `i`
+- `--compression` option: snappy, gzip, brotli, none
+- Glob pattern support in batch mode
 
-#### Comandos CLI
-- Comando `convert` con alias `c`
-- Comando `batch` con alias `b` para conversión masiva
-- Comando `info` con alias `i` para información de archivos
-- Opción `--compression` (snappy, gzip, brotli, none)
+### 🚀 Improved
 
-#### Funcionalidades
-- Auto-detección mejorada de delimitadores (`,`, `\t`, `;`, `|`, `:`)
-- Modo batch con resumen estadístico
-- Búsqueda de archivos por patrones glob
+- Delimiter auto-detection (`,`, `\t`, `;`, `|`, `:`)
+- Batch mode with aggregate statistics
+- Clearer error messages
 
-### 🚀 Mejorado
-- CLI renovado con comandos específicos
-- Interfaz más intuitiva
-- Mensajes de error más claros
+### 🐛 Fixed
 
-### 🐛 Corregido
-- Compatibilidad Windows (python vs python3)
-- Manejo de rutas relativas
+- Windows/Linux Python command compatibility
+- Relative path handling
 
 ---
 
 ## [1.0.0] - 2024-11-06
 
-### 🎉 Lanzamiento Inicial
+### 🎉 Initial Release
 
-#### Formatos Soportados (6)
-- CSV, XLSX/XLS, JSON, XML, TXT, LOG
+#### Supported Formats (6)
+CSV, XLSX/XLS, JSON, XML, TXT, LOG
 
-#### Funcionalidades Core
-- Detección automática por extensión
-- Conversión a Parquet con compresión Snappy
-- CLI con interfaz colorida
-- API JavaScript para uso programático
-- Manejo robusto de errores
-- Estadísticas detalladas de conversión
+#### Core Features
+- Extension-based auto-detection
+- Parquet output with Snappy compression
+- Colorful CLI with spinners
+- JavaScript API
+- Detailed conversion statistics
 
-#### CLI Básico
-- Conversión simple: `ultra-parquet-converter archivo.csv`
-- Opción `-o` para salida personalizada
-- Opción `-v` para modo verbose
-- Comando `setup` para instalar dependencias Python
-
-#### Optimizaciones
-- Engine C para CSV (5x más rápido)
-- Compresión columnar
+#### Optimizations
+- C engine for CSV (5x faster than Python engine)
+- Columnar compression
 - Dictionary encoding
-- Categorización automática de columnas repetitivas
+- Auto-categorization of repetitive columns
 
 ---
 
-## [Unreleased]
+## Version Comparison
 
-### 🚧 En Desarrollo
-
-Próximas versiones planificadas:
-
-#### v1.3.0 - Performance & Paralelismo
-- [ ] Parallel processing (multi-thread con Python multiprocessing)
-- [ ] GPU acceleration con cuDF (NVIDIA Rapids)
-- [ ] Compresión adaptativa (elige mejor algoritmo automáticamente)
-- [ ] Progress bar visual para archivos grandes
-- [ ] Modo watch con hot-reload
-- [ ] Cache inteligente para conversiones repetidas
-
-#### v1.4.0 - Cloud & APIs
-- [ ] REST API server
-- [ ] WebSocket streaming
-- [ ] AWS S3 integration
-- [ ] Google Cloud Storage integration
-- [ ] Azure Blob Storage integration
-- [ ] Presigned URLs para descarga directa
-
-#### v2.0.0 - Next Generation
-- [ ] WebAssembly support (cliente-lado)
-- [ ] GUI web opcional
-- [ ] Plugins para formatos personalizados
-- [ ] Apache Iceberg tables
-- [ ] Delta Lake support
-- [ ] Streaming SQL queries sobre Parquet
+| Feature | v1.0.0 | v1.0.3 | v1.1.0 | v1.3.0 |
+|---------|:------:|:------:|:------:|:------:|
+| Formats | 6 | 9 | 19 | **19+** |
+| Backends | 1 | 1 | 1 | **4** |
+| Auto-detection | Extension | Extension | Content | **Content** |
+| Streaming | ❌ | ❌ | ✅ | **✅** |
+| Auto-repair | ❌ | ❌ | ✅ | **✅** |
+| Parallel processing | ❌ | ❌ | ❌ | **✅** |
+| Adaptive compression | ❌ | ❌ | ❌ | **✅** |
+| Cython support | ❌ | ❌ | ❌ | **✅** |
+| Browser (WebAssembly) | ❌ | ❌ | ❌ | **✅** |
+| TypeScript | ❌ | ❌ | ❌ | **✅** |
+| Test coverage | ❌ | ❌ | Partial | **148+ tests** |
+| CLI commands | 2 | 5 | 7 | **9** |
+| Python version | any | any | any | **3.11** |
 
 ---
 
-## Tipos de Cambios
+## Types of Changes
 
-- `✨ Añadido` - Nuevas funcionalidades
-- `🚀 Mejorado` - Mejoras en funcionalidades existentes
-- `🐛 Corregido` - Corrección de bugs
-- `🔒 Seguridad` - Vulnerabilidades corregidas
-- `🔄 Cambios que rompen compatibilidad` - Breaking changes
-- `🗑️ Deprecado` - Funcionalidades que serán removidas
-- `❌ Removido` - Funcionalidades removidas
-
----
-
-## Comparación de Versiones
-
-### v1.0.0 vs v1.0.3 vs v1.1.0
-
-| Característica | v1.0.0 | v1.0.3 | v1.1.0 |
-|----------------|--------|--------|--------|
-| **Formatos** | 6 | 9 | **19** |
-| **Auto-detección** | Extensión | Extensión | **Contenido** |
-| **Streaming** | ❌ | ❌ | **✅** |
-| **Auto-repair** | ❌ | ❌ | **✅** |
-| **Auto-normalize** | ❌ | ❌ | **✅** |
-| **Comandos CLI** | 2 | 5 | **7** |
-| **Batch mode** | ❌ | ✅ | **✅ Mejorado** |
-| **Benchmarking** | ❌ | ❌ | **✅** |
-| **Análisis** | ❌ | ❌ | **✅** |
-| **Validación** | ❌ | ❌ | **✅** |
-| **Big Data formats** | ❌ | ❌ | **✅** |
-| **Estadística formats** | ❌ | ❌ | **✅** |
-
-### Líneas de Código
-
-| Versión | Python | JavaScript | Docs | Total |
-|---------|--------|------------|------|-------|
-| v1.0.0 | 310 | 510 | 800 | 1,620 |
-| v1.0.3 | 350 | 680 | 950 | 1,980 |
-| v1.1.0 | **830** | **780** | **1,200** | **2,810** |
+- `✨ Added` — new features
+- `🚀 Improved` — improvements to existing features
+- `🐛 Fixed` — bug fixes
+- `🔒 Security` — vulnerability fixes
+- `🔄 Breaking Changes` — breaking API changes
+- `🗑️ Deprecated` — features to be removed
+- `❌ Removed` — removed features
 
 ---
 
-## Enlaces y Recursos
+## Links
 
 - **NPM**: [ultra-parquet-converter](https://www.npmjs.com/package/ultra-parquet-converter)
 - **GitHub**: [Brashkie/ultra-parquet-converter](https://github.com/Brashkie/ultra-parquet-converter)
-- **Issues**: [Reportar bugs](https://github.com/Brashkie/ultra-parquet-converter/issues)
-- **Discussions**: [Solicitar features](https://github.com/Brashkie/ultra-parquet-converter/discussions)
+- **Issues**: [Report bugs](https://github.com/Brashkie/ultra-parquet-converter/issues)
+- **Discussions**: [Request features](https://github.com/Brashkie/ultra-parquet-converter/discussions)
 
 ---
 
-## Agradecimientos
-
-### v1.1.0
-Gracias a la comunidad por el feedback que guió el desarrollo de esta versión:
-- Solicitudes de soporte para más formatos
-- Reporte de problemas con archivos grandes
-- Sugerencias de auto-reparación
-- Feedback sobre UX del CLI
-
-### Contributors
-- **Brashkie** (Hepein Oficial) - Creador y mantenedor principal
-
----
-
-## Notas de Release
-
-### v1.1.0 - "Professional Edition"
-
-Esta versión marca la evolución de ultra-parquet-converter de una herramienta simple a una solución profesional completa para conversión de datos.
-
-**Highlights:**
-- 🎯 **19 formatos** - Cubre prácticamente todos los casos de uso
-- 🌊 **Streaming mode** - Archivos de 20GB+ ya no son problema
-- 🛠️ **Auto-repair** - CSVs corruptos se arreglan automáticamente
-- 📊 **Benchmarking** - Mide y optimiza tu pipeline
-
-**Migration Note:**
-Si vienes de v1.1.0, la única actualización necesaria es usar `convert` antes del nombre del archivo en CLI. El API JavaScript no tiene cambios breaking.
-
-**Cuando actualizar:**
-- ✅ Si procesas archivos >1GB
-- ✅ Si necesitas más formatos (HTML, YAML, SQLite, etc.)
-- ✅ Si quieres auto-reparación de datos
-- ✅ Si necesitas benchmarking
-- ⚠️ Puedes esperar si solo usas CSV/JSON básico
-
----
-
-**Mantenedor**: Brashkie (Hepein Oficial)  
-**Email**: electronicatodo2006@gmail.com  
-**Última actualización**: 25 de Noviembre, 2025  
-**Licencia**: Apache-2.0
+**Maintainer**: Brashkie (Hepein Oficial)
+**License**: Apache-2.0

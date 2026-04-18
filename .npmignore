@@ -1,23 +1,87 @@
-# Test files
-test/
-*.test.js
-test_data/
+# ─── Source TypeScript (compiled to dist/) ───────────────────────────────────
+src/
 
-# Development files
-.git/
-.gitignore
+# ─── Tests ────────────────────────────────────────────────────────────────────
+test/
+coverage/
+.nyc_output/
+jest.config.cjs
+jest.config.json
+tsconfig.test.json
+
+# ─── TypeScript config ────────────────────────────────────────────────────────
+tsconfig.json
+*.tsbuildinfo
+
+# ─── Python dev files ─────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+python/requirements.txt
+pyproject.toml
+
+# ─── Cython source (compiled .pyd/.so are included via package.json "files") ──
+cython/*.pyx
+cython/*.c
+cython/build/
+cython/setup.py
+
+# ─── Docs (internal) ──────────────────────────────────────────────────────────
+docs/
+.github/
+ARCHITECTURE.md
+IMPLEMENTATION_STATUS.md
+
+# ─── Dev config ───────────────────────────────────────────────────────────────
+.env
+.env.*
+.eslintrc*
+.prettierrc*
+.editorconfig
+
+# ─── npm credentials ──────────────────────────────────────────────────────────
+.npmrc
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ─── Temp / Examples ──────────────────────────────────────────────────────────
+*.parquet
+*.tmp
+*.temp
+tmp/
+temp/
+data/
+examples/
+
+# ─── IDEs ─────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+.history/
 
-# Documentation source
-docs/
+# ─── Package lock (not needed in published package) ───────────────────────────
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# CI/CD
-.github/
-.gitlab-ci.yml
-.travis.yml
+# ─── Coverage ─────────────────────────────────────────────────────────────────
+coverage/
 
-# Temporary files
-*.log
-*.tmp
-.DS_Store
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTE: The following ARE included (defined by "files" in package.json):
+#   dist/         compiled TypeScript output
+#   python/       Python conversion engine
+#   cython/       compiled Cython modules (.pyd/.so only)
+#   web/          browser assets
+#   README.md, README.es.md, LICENSE, CHANGELOG.md
+# ─────────────────────────────────────────────────────────────────────────────
