@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ultra Parquet Converter — Web Demo</title>
+  <meta name="description" content="Convert CSV, JSON, Excel and more to Apache Parquet directly in your browser — powered by Pyodide (Python in WebAssembly). No server, no installation." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────── -->
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🚀</span>
+        <div class="logo-text">
+          <span class="logo-title">Ultra Parquet Converter</span>
+          <span class="logo-subtitle">Web Edition — Pyodide / WebAssembly</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="badge badge-purple">🌐 Browser</span>
+        <span class="badge badge-blue">v1.3.0</span>
+        <a href="https://github.com/Brashkie/ultra-parquet-converter"
+           target="_blank"
+           style="color:var(--text-secondary);font-size:13px;text-decoration:none;">
+          GitHub ↗
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Hero ───────────────────────────────────────────────────── -->
+<main class="container">
+  <section class="hero">
+    <h1>Convert Files to Parquet</h1>
+    <p>
+      No server. No Python installation. Runs entirely in your browser
+      using <strong>Pyodide</strong> (Python compiled to WebAssembly).
+    </p>
+    <div class="hero-badges">
+      <span class="badge badge-green">✅ CSV</span>
+      <span class="badge badge-green">✅ JSON</span>
+      <span class="badge badge-green">✅ TSV</span>
+      <span class="badge badge-green">✅ Excel</span>
+      <span class="badge badge-green">✅ Parquet</span>
+      <span class="badge badge-yellow">⚠️ No filesystem access</span>
+    </div>
+  </section>
+
+  <!-- ── Pyodide status ──────────────────────────────────────────── -->
+  <div id="pyodideStatus" class="backend-info" style="display:none;">
+    <span class="spinner"></span>
+    <span id="pyodideStatusText">Loading Pyodide...</span>
+  </div>
+
+  <!-- ── Drop Zone ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">📂 Input File</div>
+
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput"
+             accept=".csv,.tsv,.psv,.json,.ndjson,.jsonl,.xlsx,.xls,.parquet,.feather,.arrow,.txt,.log" />
+      <span class="dropzone-icon">📁</span>
+      <div class="dropzone-title">Drop file here or click to browse</div>
+      <div class="dropzone-subtitle">Supports CSV, TSV, JSON, NDJSON, Excel, Parquet, Feather and more</div>
+      <div class="dropzone-formats">
+        .csv · .tsv · .json · .ndjson · .xlsx · .parquet · .feather · .txt
+      </div>
+    </div>
+
+    <div class="file-info" id="fileInfo">
+      <span class="file-info-icon" id="fileIcon">📄</span>
+      <div class="file-info-details">
+        <div class="file-info-name" id="fileName">—</div>
+        <div class="file-info-size" id="fileSize">—</div>
+      </div>
+      <button class="file-remove" id="fileRemove" title="Remove file">✕</button>
+    </div>
+  </div>
+
+  <!-- ── Options ────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">⚙️ Options</div>
+
+    <div class="options-grid">
+      <div class="option-group">
+        <label for="compressionSelect">Compression</label>
+        <select id="compressionSelect">
+          <option value="snappy" selected>snappy (default — fast)</option>
+          <option value="zstd">zstd (best ratio)</option>
+          <option value="lz4">lz4 (fastest)</option>
+          <option value="gzip">gzip (compatible)</option>
+          <option value="brotli">brotli (smallest)</option>
+          <option value="none">none (no compression)</option>
+        </select>
+      </div>
+
+      <div class="option-group">
+        <label>Processing</label>
+        <div class="checkboxes">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoRepair" checked />
+            Auto-repair
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoNormalize" checked />
+            Auto-normalize
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Convert Button ─────────────────────────────────────────── -->
+  <button class="btn btn-primary" id="convertBtn" disabled>
+    ⚡ Convert to Parquet
+  </button>
+
+  <!-- ── Progress ───────────────────────────────────────────────── -->
+  <div class="progress-section card" id="progressSection" style="margin-top:20px;">
+    <div class="card-title">🔄 Processing</div>
+    <div class="progress-status" id="progressStatus">
+      <span class="spinner"></span>
+      <span id="progressText">Starting...</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill indeterminate" id="progressBar"></div>
+    </div>
+  </div>
+
+  <!-- ── Result ─────────────────────────────────────────────────── -->
+  <div class="result-section card" id="resultSection" style="margin-top:20px;">
+    <div class="card-title">📊 Result</div>
+
+    <div id="resultStatus"></div>
+
+    <div class="stats-grid" id="statsGrid" style="display:none;"></div>
+
+    <div class="result-meta" id="resultMeta" style="display:none;"></div>
+
+    <div class="limitations" id="limitationsBox" style="display:none;">
+      <div class="limitations-title">⚠️ Pyodide Limitations</div>
+      <ul id="limitationsList"></ul>
+    </div>
+
+    <button class="btn btn-primary download-btn" id="downloadBtn" style="display:none;">
+      ⬇️ Download .parquet
+    </button>
+  </div>
+</main>
+
+<!-- ── Footer ─────────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <p class="footer-text">
+      Ultra Parquet Converter v1.3.0 — Web Edition powered by
+      <a href="https://pyodide.org" target="_blank">Pyodide</a> ·
+      <a href="https://github.com/Brashkie/ultra-parquet-converter" target="_blank">GitHub</a> ·
+      Apache-2.0 License · Made by
+      <a href="https://github.com/Brashkie" target="_blank">Hepein Oficial × Brashkie</a>
+    </p>
+  </div>
+</footer>
+
+<!-- ── Scripts ────────────────────────────────────────────────── -->
+<script src="pyodide-loader.js"></script>
+<script>
+'use strict';
+
+// ── DOM refs ────────────────────────────────────────────────────
+const dropzone        = document.getElementById('dropzone');
+const fileInput       = document.getElementById('fileInput');
+const fileInfo        = document.getElementById('fileInfo');
+const fileName        = document.getElementById('fileName');
+const fileSize        = document.getElementById('fileSize');
+const fileIcon        = document.getElementById('fileIcon');
+const fileRemove      = document.getElementById('fileRemove');
+const convertBtn      = document.getElementById('convertBtn');
+const progressSection = document.getElementById('progressSection');
+const progressText    = document.getElementById('progressText');
+const progressBar     = document.getElementById('progressBar');
+const resultSection   = document.getElementById('resultSection');
+const resultStatus    = document.getElementById('resultStatus');
+const statsGrid       = document.getElementById('statsGrid');
+const resultMeta      = document.getElementById('resultMeta');
+const limitationsBox  = document.getElementById('limitationsBox');
+const limitationsList = document.getElementById('limitationsList');
+const downloadBtn     = document.getElementById('downloadBtn');
+const pyodideStatus   = document.getElementById('pyodideStatus');
+const pyodideStatusText = document.getElementById('pyodideStatusText');
+
+// ── State ───────────────────────────────────────────────────────
+const converter = new PyodideConverter();
+let   currentFile = null;
+let   lastResult  = null;
+
+// ── Initialize Pyodide in background ──────────────────────────
+(async () => {
+  pyodideStatus.style.display = 'flex';
+  pyodideStatusText.textContent = 'Loading Pyodide (~100MB on first load)...';
+
+  try {
+    await converter.init((progress) => {
+      pyodideStatusText.textContent = progress.stage;
+    });
+
+    pyodideStatus.style.background  = 'rgba(63,185,80,0.1)';
+    pyodideStatus.style.borderColor = 'rgba(63,185,80,0.3)';
+    pyodideStatus.style.color       = 'var(--accent-green)';
+    pyodideStatusText.textContent   = '✅ Pyodide ready — Python 3.11 running in WebAssembly';
+
+    // Enable convert button if file is selected
+    if (currentFile) convertBtn.disabled = false;
+
+  } catch (err) {
+    pyodideStatus.style.background  = 'rgba(248,81,73,0.1)';
+    pyodideStatus.style.borderColor = 'rgba(248,81,73,0.3)';
+    pyodideStatus.style.color       = 'var(--accent-red)';
+    pyodideStatusText.textContent   = `❌ Failed to load Pyodide: ${err.message}`;
+  }
+})();
+
+// ── File selection ─────────────────────────────────────────────
+
+function handleFileSelect(file) {
+  if (!file) return;
+  currentFile = file;
+
+  // Detect icon
+  const ext = file.name.split('.').pop().toLowerCase();
+  const icons = {
+    csv: '📊', tsv: '📊', psv: '📊', txt: '📄', log: '📋',
+    json: '🗂️', ndjson: '🗂️', jsonl: '🗂️',
+    xlsx: '📗', xls: '📗',
+    parquet: '⚡', feather: '🪶', arrow: '🏹',
+  };
+  fileIcon.textContent  = icons[ext] || '📄';
+  fileName.textContent  = file.name;
+  fileSize.textContent  = formatBytes(file.size);
+  fileInfo.classList.add('visible');
+  dropzone.style.display = 'none';
+
+  // Enable convert only if Pyodide is ready
+  if (converter._ready) convertBtn.disabled = false;
+
+  // Hide previous result
+  resultSection.classList.remove('visible');
+  resultSection.style.display = 'none';
+}
+
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files[0]) handleFileSelect(e.target.files[0]);
+});
+
+fileRemove.addEventListener('click', () => {
+  currentFile      = null;
+  fileInput.value  = '';
+  fileInfo.classList.remove('visible');
+  dropzone.style.display = '';
+  convertBtn.disabled = true;
+  resultSection.classList.remove('visible');
+  resultSection.style.display = 'none';
+});
+
+// ── Drag & drop ─────────────────────────────────────────────────
+
+dropzone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropzone.classList.add('drag-over');
+});
+
+dropzone.addEventListener('dragleave', () => {
+  dropzone.classList.remove('drag-over');
+});
+
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]);
+});
+
+// ── Progress update ─────────────────────────────────────────────
+
+function updateProgress({ stage, percent }) {
+  progressText.textContent = stage;
+
+  if (percent > 0) {
+    progressBar.classList.remove('indeterminate');
+    progressBar.style.width = `${percent}%`;
+  } else {
+    progressBar.classList.add('indeterminate');
+    progressBar.style.width = '40%';
+  }
+}
+
+// ── Show result ─────────────────────────────────────────────────
+
+function showResult(result) {
+  lastResult = result;
+
+  // Success banner
+  resultStatus.innerHTML = `
+    <div class="result-success">
+      ✅ Conversion successful — backend: <strong>${result.backend}</strong>
+    </div>
+  `;
+
+  // Stats grid
+  statsGrid.style.display = '';
+  statsGrid.innerHTML = `
+    <div class="stat-item">
+      <div class="stat-value">${formatNumber(result.rows)}</div>
+      <div class="stat-label">Rows</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">${formatNumber(result.columns)}</div>
+      <div class="stat-label">Columns</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">${result.compression_ratio?.toFixed(1)}%</div>
+      <div class="stat-label">Compression</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">${formatTime(result.elapsed_time)}</div>
+      <div class="stat-label">Time</div>
+    </div>
+  `;
+
+  // Meta
+  resultMeta.style.display = '';
+  resultMeta.innerHTML = `
+    <span>Input size:</span>  ${formatBytes(result.input_size)}<br>
+    <span>Output size:</span> ${formatBytes(result.output_size)}<br>
+    <span>File type:</span>   ${result.file_type || '—'}<br>
+    <span>Backend:</span>     ${result.backend}
+  `;
+
+  // Limitations (Pyodide only)
+  if (result.limitations && result.limitations.length > 0) {
+    limitationsBox.style.display = '';
+    limitationsList.innerHTML = result.limitations
+      .map(l => `<li>${l}</li>`)
+      .join('');
+  }
+
+  // Download button (only if parquet_bytes present)
+  if (result.parquet_bytes && result.parquet_bytes.length > 0) {
+    downloadBtn.style.display = '';
+  }
+
+  resultSection.style.display = '';
+  resultSection.classList.add('visible');
+  resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function showError(message) {
+  resultStatus.innerHTML = `
+    <div class="result-error">
+      ❌ ${message}
+    </div>
+  `;
+  statsGrid.style.display    = 'none';
+  resultMeta.style.display   = 'none';
+  limitationsBox.style.display = 'none';
+  downloadBtn.style.display  = 'none';
+  resultSection.style.display = '';
+  resultSection.classList.add('visible');
+}
+
+// ── Convert ─────────────────────────────────────────────────────
+
+convertBtn.addEventListener('click', async () => {
+  if (!currentFile || !converter._ready) return;
+
+  convertBtn.disabled = true;
+  progressSection.style.display = '';
+  progressSection.classList.add('visible');
+  resultSection.classList.remove('visible');
+  resultSection.style.display = 'none';
+  progressBar.classList.add('indeterminate');
+  progressBar.style.width = '40%';
+  progressText.textContent = 'Reading file...';
+
+  try {
+    // Read file
+    const { data, type } = await PyodideConverter.readFile(currentFile);
+
+    // Build options
+    const options = {
+      compression:   document.getElementById('compressionSelect').value,
+      autoRepair:    document.getElementById('autoRepair').checked,
+      autoNormalize: document.getElementById('autoNormalize').checked,
+    };
+
+    // Convert
+    const result = await converter.convert(data, options, updateProgress);
+
+    progressSection.classList.remove('visible');
+    progressSection.style.display = 'none';
+    showResult(result);
+
+  } catch (err) {
+    progressSection.classList.remove('visible');
+    progressSection.style.display = 'none';
+    showError(err.message);
+  } finally {
+    convertBtn.disabled = false;
+  }
+});
+
+// ── Download ─────────────────────────────────────────────────────
+
+downloadBtn.addEventListener('click', () => {
+  if (!lastResult) return;
+  try {
+    PyodideConverter.downloadParquet(lastResult, currentFile?.name || 'output');
+  } catch (err) {
+    alert(`Download failed: ${err.message}`);
+  }
+});
+</script>
+
+</body>
+</html>
