@@ -7,32 +7,10 @@ import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import os from 'os';
+import { Environment } from '../types';
 
-export interface Environment {
-  // Platform
-  platform: NodeJS.Platform;
-  isWindows: boolean;
-  isLinux: boolean;
-  isMac: boolean;
-  isNode: boolean;
-  isBrowser: boolean;
-
-  // Python
-  hasPython: boolean;
-  pythonCommand?: string;
-  pythonVersion?: string;
-
-  // Cython
-  hasCython: boolean;
-  cythonModules?: string[];
-
-  // Portable Python
-  hasPortablePython: boolean;
-  portablePythonPath?: string;
-
-  // WebAssembly
-  hasWebAssembly: boolean;
-}
+// Environment es la fuente única en src/types; se re-exporta por compatibilidad.
+export type { Environment } from '../types';
 
 class EnvironmentDetector {
   private cachedEnv: Environment | null = null;

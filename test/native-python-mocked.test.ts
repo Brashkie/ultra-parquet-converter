@@ -260,6 +260,21 @@ describe('NativePythonBackend (mocked)', () => {
 
       Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
     });
+
+    // Cubre: isAvailable en win32 → usa 'py'
+    it('should use "py" command on win32 for isAvailable', async () => {
+      const originalPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+
+      mockSpawn.mockReturnValue({
+        on: jest.fn((ev: string, cb: (c: number) => void) => { if (ev === 'close') cb(0); }),
+      });
+
+      await NativePythonBackend.isAvailable();
+      expect(mockSpawn).toHaveBeenCalledWith('py', ['--version'], { stdio: 'ignore' });
+
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
+    });
   });
 
   // ── convert — opciones ───────────────────────────────────────────────────────

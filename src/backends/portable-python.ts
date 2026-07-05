@@ -1,24 +1,20 @@
 /**
- * Portable Python Backend
- * Descarga Python portable automáticamente si no existe
+ * Portable Python Backend v1.4.0
+ * Descarga Python portable automáticamente si no existe y convierte con él.
+ * Comparte la mecánica spawn→JSON y la construcción de args con native.
  */
-// src/backends/portable-python.ts
 
-import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { ConversionOptions, ConversionResult, BackendInterface } from '../types';
 import { ensurePortablePython, getDownloader } from '../utils/download';
+import { buildPythonArgs } from './native-python';
+import { runPythonToJson } from '../utils/python-runner';
 
 export class PortablePythonBackend implements BackendInterface {
   private pythonPath: string | null = null;
 
-  async convert(
-    inputFile: string,
-    options?: ConversionOptions
-  ): Promise<ConversionResult> {
-    
-    // Asegura que Python portable esté instalado
+  async convert(inputFile: string, options?: ConversionOptions): Promise<ConversionResult> {
     if (!this.pythonPath) {
       console.log('🔄 Configurando Python portable por primera vez...');
       this.pythonPath = await ensurePortablePython();
@@ -28,74 +24,25 @@ export class PortablePythonBackend implements BackendInterface {
       throw new Error(`Archivo no encontrado: ${inputFile}`);
     }
 
-    const pythonScript = join(__dirname, '..', '..', 'python', 'converter_advanced.py');
-    const args = [pythonScript, inputFile];
+    if (!this.pythonPath) {
+      throw new Error('Portable Python not initialized');
+    }
 
-    if (options?.output) args.push('-o', options.output);
-    if (options?.verbose) args.push('-v');
-    if (options?.streaming) args.push('--streaming');
-    if (options?.autoRepair === false) args.push('--no-repair');
-    if (options?.autoNormalize === false) args.push('--no-normalize');
+    const script = join(__dirname, '..', '..', 'python', 'converter_advanced.py');
+    const args = buildPythonArgs(script, inputFile, options);
 
-    return this.executePython(args);
-  }
-
-  private executePython(args: string[]): Promise<ConversionResult> {
-    return new Promise((resolve, reject) => {
-      if (!this.pythonPath) {
-        return reject(new Error('Portable Python not initialized'));
-      }
-
-      const proc = spawn(this.pythonPath, args, {
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
-
-      let stdout = '';
-      let stderr = '';
-
-      proc.stdout?.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      proc.stderr?.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      proc.on('close', (code) => {
-        if (code !== 0) {
-          try {
-            const errorData = JSON.parse(stdout || '{}');
-            return reject(new Error(errorData.error || `Error (código ${code})`));
-          } catch {
-            return reject(new Error(stderr || stdout || 'Error desconocido'));
-          }
-        }
-
-        try {
-          const result = JSON.parse(stdout);
-          if (result.success === false) {
-            return reject(new Error(result.error || 'Error desconocido'));
-          }
-          result.backend = 'portable-python';
-          resolve(result);
-        } catch (e: any) {
-          reject(new Error(`Error al parsear: ${e.message}`));
-        }
-      });
-
-      proc.on('error', (err) => {
-        reject(new Error(`Error Python: ${err.message}`));
-      });
+    return runPythonToJson(this.pythonPath, args, 'portable-python', {
+      execError:       (m) => `Error Python: ${m}`,
+      parseError:      (e) => `Error al parsear: ${e.message}`,
+      nonZeroCode:     (code) => `Error (código ${code})`,
     });
   }
 
   static async isAvailable(): Promise<boolean> {
-    const downloader = getDownloader();
-    return downloader.isInstalled();
+    return getDownloader().isInstalled();
   }
 
   static async getInfo() {
-    const downloader = getDownloader();
-    return downloader.getInfo();
+    return getDownloader().getInfo();
   }
 }

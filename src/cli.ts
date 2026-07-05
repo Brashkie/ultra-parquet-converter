@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Ultra Parquet Converter CLI v1.3.0
+ * Ultra Parquet Converter CLI v1.4.0
  * TypeScript Edition — Progress Bar + Watch Mode
  */
 
@@ -192,8 +192,8 @@ function printResults(result: any, input: string, elapsed: number, showBenchmark
 
 program
   .name('ultra-parquet-converter')
-  .description('🚀 Conversor profesional híbrido a Parquet v1.3.0')
-  .version('1.3.0');
+  .description('🚀 Conversor profesional híbrido a Parquet v1.4.0')
+  .version('1.4.0');
 
 // ── Comando: convert ────────────────────────────────────────────────────
 
@@ -212,18 +212,25 @@ program
   .option('--benchmark',                'Mostrar benchmark de velocidad')
   .option('--no-progress',              'Desactivar progress bar')
   .action(async (input: string, options: any) => {
-    console.log(chalk.bold.cyan('\n🔄 Ultra Parquet Converter v1.3.0\n'));
+    console.log(chalk.bold.cyan('\n🔄 Ultra Parquet Converter v1.4.0\n'));
 
-    // Verifica Python
-    const spinner = ora('Verificando Python...').start();
-    const pythonCheck = await checkPythonSetup();
+    // Pyodide (WASM) no requiere Python del sistema — solo verificamos para
+    // los backends nativos.
+    const usesPyodide = options.backend === 'pyodide';
 
-    if (!pythonCheck.installed) {
-      spinner.fail(chalk.red('Python no encontrado'));
-      console.log(chalk.yellow('\n⚠️  Instala Python 3.8+\n'));
-      process.exit(1);
+    if (!usesPyodide) {
+      const spinner = ora('Verificando Python...').start();
+      const pythonCheck = await checkPythonSetup();
+
+      if (!pythonCheck.installed) {
+        spinner.fail(chalk.red('Python no encontrado'));
+        console.log(chalk.yellow('\n⚠️  Instala Python 3.8+ o usa --backend pyodide (WASM, sin instalación)\n'));
+        process.exit(1);
+      }
+      spinner.succeed(chalk.green(pythonCheck.message));
+    } else {
+      console.log(chalk.blue('🌐 Backend Pyodide (WebAssembly) — sin Python del sistema'));
     }
-    spinner.succeed(chalk.green(pythonCheck.message));
 
     if (!existsSync(input)) {
       console.log(chalk.red(`\n❌ Archivo no encontrado: ${input}\n`));
@@ -285,7 +292,7 @@ program
   .option('--compression <type>',     'Algoritmo de compresión', 'adaptive')
   .option('--workers <n>',            'Workers paralelos (0=auto)', '0')
   .action(async (pattern: string, options: any) => {
-    console.log(chalk.bold.cyan('\n📦 Ultra Parquet Converter — Modo Batch v1.3.0\n'));
+    console.log(chalk.bold.cyan('\n📦 Ultra Parquet Converter — Modo Batch v1.4.0\n'));
 
     const files = findFiles(pattern);
     if (files.length === 0) {
@@ -367,7 +374,7 @@ program
   .option('--workers <n>',            'Workers paralelos (0=auto)', '0')
   .option('--debounce <ms>',          'Espera antes de convertir (ms)', '500')
   .action(async (directory: string, options: any) => {
-    console.log(chalk.bold.cyan('\n👁️  Ultra Parquet Converter — Modo Watch v1.3.0\n'));
+    console.log(chalk.bold.cyan('\n👁️  Ultra Parquet Converter — Modo Watch v1.4.0\n'));
 
     if (!existsSync(directory)) {
       console.log(chalk.red(`❌ Directorio no encontrado: ${directory}\n`));

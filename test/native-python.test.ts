@@ -5,6 +5,7 @@
 import { NativePythonBackend } from '../src/backends/native-python';
 import { existsSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { describeIfPython } from './helpers/python-env';
 
 const FIXTURES_DIR = join(__dirname, 'fixtures');
 const TEST_CSV     = join(FIXTURES_DIR, 'test_native.csv');
@@ -28,6 +29,8 @@ describe('NativePythonBackend', () => {
     const backend = new NativePythonBackend();
     await expect(backend.convert('non-existent-file.csv')).rejects.toThrow();
   });
+
+  describeIfPython('conversiones reales (requiere Python + pandas)', () => {
 
   it('should convert CSV successfully', async () => {
     const backend = new NativePythonBackend();
@@ -90,4 +93,5 @@ describe('NativePythonBackend', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("'invalid'"));
     warnSpy.mockRestore();
   }, 30000);
+  });
 });

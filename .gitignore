@@ -8,11 +8,9 @@ dist/
 build/
 *.js.map
 *.d.ts.map
-
-# ─── TypeScript ───────────────────────────────────────────────────────────────
 *.tsbuildinfo
 
-# ─── Test & Coverage ──────────────────────────────────────────────────────────
+# ─── Tests & coverage ─────────────────────────────────────────────────────────
 coverage/
 .nyc_output/
 *.lcov
@@ -23,24 +21,17 @@ test/fixtures/
 __pycache__/
 *.py[cod]
 *$py.class
-*.pyc
-*.pyo
-*.pyd
-*.so
 *.egg
 *.egg-info/
-dist-info/
 .Python
 .venv/
 venv/
 env/
-.env/
-pip-log.txt
-pip-delete-this-directory.txt
 .pytest_cache/
 .mypy_cache/
+pip-log.txt
 
-# ─── Cython build artifacts ───────────────────────────────────────────────────
+# ─── Cython build artifacts (compiled modules are shipped via package.json "files") ─
 cython/build/
 cython/*.c
 cython/*.html
@@ -50,15 +41,14 @@ cython/*.cpython-*.so
 !cython/setup.py
 !cython/__init__.py
 
-# ─── Portable Python (auto-downloaded, not committed) ────────────────────────
-~/.ultra-parquet-converter/
+# ─── Portable Python (auto-downloaded at runtime, never committed) ────────────
+.ultra-parquet-converter/
 
-# ─── Environment ──────────────────────────────────────────────────────────────
+# ─── Environment & secrets ────────────────────────────────────────────────────
 .env
-.env.local
-.env.*.local
-.env.production
-.env.development
+.env.*
+!.env.example
+.npmrc
 
 # ─── Logs ─────────────────────────────────────────────────────────────────────
 logs/
@@ -67,7 +57,22 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
+
+# ─── Packaged tarballs ────────────────────────────────────────────────────────
+*.tgz
+
+# ─── Generated output data (NOT the source examples/ folder) ──────────────────
+*.parquet
+*.tmp
+*.temp
+tmp/
+temp/
+/data/
+
+# ─── Package managers ─────────────────────────────────────────────────────────
+yarn.lock
+pnpm-lock.yaml
+.yarn/
 
 # ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
@@ -79,31 +84,15 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# ─── IDEs ─────────────────────────────────────────────────────────────────────
+# ─── Editors / IDEs ───────────────────────────────────────────────────────────
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json
 .idea/
 *.swp
 *.swo
-*.sublime-project
-*.sublime-workspace
 .history/
 
-# ─── Temp / Output files ──────────────────────────────────────────────────────
-*.parquet
-*.tmp
-*.temp
-tmp/
-temp/
-data/
-examples/
-
-# ─── Package managers ─────────────────────────────────────────────────────────
-yarn.lock
-pnpm-lock.yaml
-.yarn/
-.pnp.*
-
-# ─── npm credentials (NEVER commit) ──────────────────────────────────────────
-.npmrc
+# ─── Tooling caches ───────────────────────────────────────────────────────────
+.turbo/
+.cache/

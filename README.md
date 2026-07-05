@@ -1,190 +1,165 @@
-# 🚀 Ultra Parquet Converter v1.3.0
+<div align="center">
 
-[![npm version](https://img.shields.io/npm/v/ultra-parquet-converter.svg)](https://www.npmjs.com/package/ultra-parquet-converter)
+# 🚀 Ultra Parquet Converter
+
+### Professional hybrid **CSV / JSON / Excel → Parquet** converter for Node.js & the browser
+
+Native speed when Python is available, **zero‑install WebAssembly** when it isn't.
+
+[![npm version](https://img.shields.io/npm/v/ultra-parquet-converter.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/ultra-parquet-converter)
+[![Downloads](https://img.shields.io/npm/dm/ultra-parquet-converter.svg?color=cb3837)](https://www.npmjs.com/package/ultra-parquet-converter)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
-[![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://python.org)
-[![Downloads](https://img.shields.io/npm/dm/ultra-parquet-converter.svg)](https://www.npmjs.com/package/ultra-parquet-converter)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-ready-654FF0?logo=webassembly&logoColor=white)](https://webassembly.org)
 
-**Professional hybrid Parquet converter** with streaming, auto-repair and support for **19+ formats**.
+**[English](README.md)** · **[Español](README.es.md)** · **[Changelog](CHANGELOG.md)** · **[Architecture](docs/ARCHITECTURE.md)**
 
-Combines the speed of Node.js with the power of Python + Apache Arrow for ultra-fast conversions, processing of massive files without memory overflow, and automatic repair of corrupted data — with **4 backends** that require zero configuration.
-
-> 📖 [Versión en Español](README.es.md)
+</div>
 
 ---
 
-## ✨ Key Features
+Ultra Parquet Converter combines the orchestration of **Node.js** with the data power of **Python + Apache Arrow** to turn 19+ tabular formats into compact, analytics‑ready **Parquet** — with streaming for massive files, automatic repair of corrupted data, and **four interchangeable backends** that require zero configuration.
 
-### 🎯 Core
-- 🔍 **Smart auto-detection** — by extension AND file content
-- ⚡ **Ultra-fast** — Apache Arrow + optimized Pandas
-- 🌊 **Streaming mode** — process 1GB, 5GB, 20GB+ files without memory overflow
-- 🔧 **Auto-repair** — fixes corrupt CSVs, removes empty columns
-- 📊 **Auto-normalize** — normalizes names, detects types automatically
-- 🌐 **Cross-platform** — Windows, Linux, macOS
-- 🐍 **Flexible Python detection** — detects `py`, `python`, `python3` automatically
-
-### 🚀 Advanced (v1.3.0)
-- 🏗️ **4 backends** with automatic selection: Native Python, Portable Python, Pyodide (WebAssembly), Cython
-- ⚡ **Parallel processing** — `ProcessPoolExecutor` + `ThreadPoolExecutor`
-- 🧠 **Adaptive compression** — automatically selects snappy / zstd / lz4 / gzip / brotli
-- 🌐 **Browser support** — Pyodide backend runs in the browser via WebAssembly (no Python needed)
-- 📦 **Auto-download Python** — Portable Python backend downloads Python 3.11 automatically if not installed
-- 🔄 **Batch processing** — convert hundreds of files
-- 📈 **Built-in benchmarking** — speed, throughput, memory
-- 🎨 **Beautiful CLI** — colors, spinners, progress bar, detailed stats
+```bash
+npm install -g ultra-parquet-converter
+ultra-parquet-converter convert sales.csv        # → sales.parquet, auto backend
+```
 
 ---
 
-## 📋 Supported Formats (19+)
+## 🆕 What's new in 1.4.0
 
-### Delimited Files
-| Format | Extensions | Auto-detect |
-|--------|-----------|-------------|
-| CSV | `.csv` | ✅ |
-| TSV | `.tsv` | ✅ |
-| PSV | `.psv` | ✅ |
-| DSV | `.dsv`, `.txt`, `.log` | ✅ |
+> A robustness & cleanup release. Highlights:
 
-### Spreadsheets
-| Format | Extensions | Auto-detect |
-|--------|-----------|-------------|
-| Excel | `.xlsx`, `.xls` | ✅ |
+- 🌐 **WebAssembly path fixed end‑to‑end.** The Pyodide backend now works correctly through the automatic selector: `convert(path)` reads the file, runs the conversion in WASM and **writes the `.parquet` to disk**.
+- 🧠 **New in‑memory API** `PyodideBackend.convertData(data)` for the browser and programmatic use (returns the Parquet bytes, no filesystem).
+- 🔓 **`--backend pyodide` no longer requires system Python** — true zero‑install conversions from the CLI.
+- ♻️ **Single source of truth** for the WASM conversion code (`python/pyodide_convert.py`), shared by Node and the browser worker — no more duplicated Python.
 
-### Structured Formats
-| Format | Extensions | Auto-detect |
-|--------|-----------|-------------|
-| JSON | `.json` | ✅ |
-| NDJSON / JSON Lines | `.ndjson`, `.jsonl` | ✅ |
-| XML | `.xml` | ✅ |
-| YAML | `.yaml`, `.yml` | ✅ |
-| HTML | `.html` | ✅ |
-
-### Big Data Formats
-| Format | Extensions | Auto-detect |
-|--------|-----------|-------------|
-| Feather / Arrow | `.feather`, `.arrow` | ✅ Magic bytes |
-| ORC | `.orc` | ✅ Magic bytes |
-| Avro | `.avro` | ✅ Magic bytes |
-
-### Databases
-| Format | Extensions | Auto-detect |
-|--------|-----------|-------------|
-| SQLite | `.sqlite`, `.db` | ✅ Magic bytes |
-
-### Statistical Formats
-| Format | Extensions | Auto-detect |
-|--------|-----------|-------------|
-| SPSS | `.sav` | By extension |
-| SAS | `.sas7bdat` | By extension |
-| Stata | `.dta` | By extension |
+See the full [CHANGELOG](CHANGELOG.md).
 
 ---
 
-## 🏗️ Backends
+## ✨ Features
+
+| | |
+|---|---|
+| 🔍 **Smart auto‑detection** | Detects format by extension **and** by file content (magic bytes) |
+| ⚡ **Ultra‑fast** | Apache Arrow + optimized Pandas under the hood |
+| 🌊 **Streaming** | Convert 1 GB, 5 GB, 20 GB+ files without blowing up memory |
+| 🔧 **Auto‑repair** | Fixes broken CSVs, drops empty columns, de‑duplicates |
+| 📊 **Auto‑normalize** | Cleans column names, infers types automatically |
+| 🧠 **Adaptive compression** | Picks snappy / zstd / lz4 / gzip / brotli for you |
+| 🏗️ **4 backends** | Native · Portable · WebAssembly · Cython — auto‑selected |
+| 🌐 **Runs in the browser** | Full WebAssembly path, no Python required |
+| 🎨 **Polished CLI** | Colors, spinners, progress bars, batch & watch modes |
+| 🧩 **Typed API** | First‑class TypeScript types for every option and result |
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TD
+    A[Input file / data] --> B{Backend Selector}
+    B -->|forceBackend| F[Chosen backend]
+    B -->|>50 MB + compiled| C[Cython]
+    B -->|system Python| D[Native Python]
+    B -->|Node, no Python| E[Portable Python<br/>auto-downloads 3.11]
+    B -->|Browser / WASM| W[Pyodide · WebAssembly]
+
+    C --> P[converter_advanced.py<br/>Pandas + Arrow]
+    D --> P
+    E --> P
+    W --> PW[pyodide_convert.py<br/>Pandas + Arrow in WASM]
+
+    P --> O[(.parquet)]
+    PW --> O
+```
+
+**Auto‑selection priority:** Cython (large files) → Native Python → Portable Python → Pyodide.
 
 | Backend | Speed | Requires | Best for |
-|---------|-------|----------|----------|
-| **Cython** | 🚀🚀🚀🚀🚀 | Python 3.11 + compiled modules | Large files (>50MB) |
+|---------|:-----:|----------|----------|
+| **Cython** | 🚀🚀🚀🚀🚀 | Python 3.11 + compiled modules | Large files (> 50 MB) |
 | **Native Python** | ⚡⚡⚡⚡⚡ | Python 3.11 | General purpose |
-| **Portable Python** | ⚡⚡⚡⚡ | Node.js (auto-downloads Python 3.11) | No Python installed |
-| **Pyodide** | ⚡⚡ | None (WebAssembly) | Browser / no Python |
+| **Portable Python** | ⚡⚡⚡⚡ | Node.js only (auto‑downloads Python) | No Python installed |
+| **Pyodide** | ⚡⚡ | Nothing (WebAssembly) | Browser / zero‑install |
 
-**Auto-selection priority**: Cython (large files) → Native Python → Portable Python → Pyodide.
+> **No Python?** No problem. **Portable Python** downloads Python 3.11 on first run (~30 MB on Windows, ~50 MB on Linux/macOS). **Pyodide** runs entirely in WebAssembly — even in the browser.
 
-> **No Python installed?** No problem — the **Portable Python** backend downloads Python 3.11 automatically on first run (~30MB on Windows, ~50MB on Linux/macOS). The **Pyodide** backend works with zero installation via WebAssembly, even in the browser.
+---
+
+## 📋 Supported formats (19+)
+
+| Category | Formats | Native / Portable / Cython | Pyodide (WASM) |
+|----------|---------|:--------------------------:|:--------------:|
+| **Delimited** | CSV, TSV, PSV, DSV (`.csv` `.tsv` `.psv` `.dsv` `.txt` `.log`) | ✅ | ✅ |
+| **Spreadsheets** | Excel (`.xlsx` `.xls`) | ✅ | ✅ |
+| **Structured** | JSON, NDJSON/JSONL (`.json` `.ndjson` `.jsonl`) | ✅ | ✅ |
+| | XML, YAML, HTML (`.xml` `.yaml` `.yml` `.html`) | ✅ | — |
+| **Big data** | Feather/Arrow, ORC, Avro (`.feather` `.arrow` `.orc` `.avro`) | ✅ | Parquet/Feather |
+| **Databases** | SQLite (`.sqlite` `.db`) | ✅ | — |
+| **Statistical** | SPSS, SAS, Stata (`.sav` `.sas7bdat` `.dta`) | ✅ | — |
+
+> The WebAssembly backend covers the most common formats (CSV/TSV/PSV/JSON + Excel/Parquet). For the full format matrix, use a Python‑backed backend.
 
 ---
 
 ## 🔧 Installation
 
-### Prerequisites
+**Requirements:** Node.js ≥ 18. Python 3.11 is recommended for the Native/Cython backends (optional — the Portable and Pyodide backends need no Python).
 
 ```bash
-# Node.js ≥ 18.0.0
-node --version
-```
-
-**Python 3.11 is recommended** for Native Python and Cython backends. Other versions are not guaranteed to be compatible with all dependencies.
-
-```bash
-# Verify Python version (must be 3.11.x)
-py --version        # Windows
-python --version    # Windows/Linux
-python3 --version   # Linux/macOS
-
-# If you don't have Python 3.11:
-# → Windows:  https://www.python.org/downloads/release/python-3119/
-# → macOS:    brew install python@3.11
-# → Ubuntu:   sudo apt install python3.11 python3.11-pip
-```
-
-> **No Python? No problem.** Just install the npm package — the Portable Python and Pyodide backends work without any Python installation.
-
-### Install NPM Package
-
-```bash
-# Global (recommended for CLI use)
+# Global (recommended for CLI)
 npm install -g ultra-parquet-converter
 
-# Or local
+# Or as a project dependency
 npm install ultra-parquet-converter
 ```
 
-### Install Python 3.11 Dependencies
-
-#### Option 1: Automatic (recommended)
-
-```bash
-ultra-parquet-converter setup
-```
-
-#### Option 2: pip (standard)
+<details>
+<summary><b>Optional: install Python 3.11 dependencies (for Native/Cython backends)</b></summary>
 
 ```bash
 pip install pandas pyarrow numpy openpyxl lxml pyyaml fastavro pyreadstat
 ```
 
-#### Option 3: .whl (offline / air-gapped environments)
-
-If you don't have internet access or want exact pre-compiled wheel files for Python 3.11:
+For offline / air‑gapped environments, install pre‑built wheels filtered by `cp311` and your OS (`win_amd64`, `linux_x86_64`, `macosx`):
 
 ```bash
-# Download wheels for your platform from PyPI (https://pypi.org)
-# Example for Windows amd64 + Python 3.11:
-pip install pandas-2.1.4-cp311-cp311-win_amd64.whl
-pip install pyarrow-14.0.1-cp311-cp311-win_amd64.whl
-pip install numpy-1.26.2-cp311-cp311-win_amd64.whl
-
-# Or install all at once from a local wheels folder:
-pip install --no-index --find-links=./wheels pandas pyarrow numpy openpyxl lxml pyyaml fastavro pyreadstat
+pip install --no-index --find-links=./wheels \
+  pandas pyarrow numpy openpyxl lxml pyyaml fastavro pyreadstat
 ```
 
-Download wheels for your platform from [https://pypi.org](https://pypi.org) — search for the package name and filter by `cp311` (CPython 3.11) and your OS (`win_amd64`, `linux_x86_64`, `macosx`).
+Don't have Python at all? Skip this — `--backend portable-python` or `--backend pyodide` work without it.
+
+</details>
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
 ### CLI
 
 ```bash
-# Simple conversion
+# Simple conversion (auto backend)
 ultra-parquet-converter convert data.csv
 
 # With options
-ultra-parquet-converter convert data.json -o output.parquet --streaming -v
+ultra-parquet-converter convert data.json -o out.parquet --streaming -v
 
-# Multiple files
+# Zero‑install via WebAssembly (no system Python needed)
+ultra-parquet-converter convert data.csv --backend pyodide
+
+# Convert many files
 ultra-parquet-converter batch "*.csv" -o converted/
 
-# Help
 ultra-parquet-converter --help
 ```
 
-### JavaScript / TypeScript API
+### Node.js / TypeScript API
 
 ```typescript
 import { convertToParquet } from 'ultra-parquet-converter';
@@ -194,218 +169,209 @@ const result = await convertToParquet('data.csv');
 console.log(`${result.rows} rows → ${result.compression_ratio}% compression`);
 console.log(`Backend: ${result.backend}`);
 
-// With full options
-const result = await convertToParquet('huge_file.csv', {
+// Full options
+await convertToParquet('huge_file.csv', {
   output: 'output.parquet',
-  compression: 'zstd',        // snappy | zstd | lz4 | gzip | brotli | adaptive
+  compression: 'zstd',          // snappy | zstd | lz4 | gzip | brotli | none | adaptive
   streaming: true,
   autoRepair: true,
   autoNormalize: true,
   parallelWorkers: 4,
   verbose: true,
-  forceBackend: 'cython',     // Force a specific backend
+  forceBackend: 'cython',       // force a specific backend
 });
 ```
 
----
+### Browser (WebAssembly, no Python)
 
-## 📚 Full CLI Reference
+```typescript
+import { PyodideBackend } from 'ultra-parquet-converter';
 
-### `convert` — Single File Conversion
+const backend = new PyodideBackend();
 
-```bash
-ultra-parquet-converter convert <file> [options]
-# Alias: upc c <file>
+// From a <textarea>, fetch(), or a File
+const csv = 'id,name,city\n1,Juan,Lima\n2,Maria,Cusco';
+const result = await backend.convertData(csv);
+
+// result.parquet_bytes → number[]; turn it into a downloadable Blob
+const blob = new Blob([new Uint8Array(result.parquet_bytes!)], {
+  type: 'application/octet-stream',
+});
+
+// Binary input (Excel / Parquet) works too, via ArrayBuffer:
+const file = document.querySelector('input[type=file]')!.files![0];
+const excelResult = await backend.convertData(await file.arrayBuffer());
 ```
 
-**Options:**
-- `-o, --output <file>` — custom output path
-- `-v, --verbose` — detailed logs
-- `--streaming` — streaming mode for files >100MB
-- `--no-repair` — disable auto-repair
-- `--no-normalize` — disable auto-normalize
-- `--compression <type>` — snappy, zstd, lz4, gzip, brotli, adaptive
-- `--workers <n>` — number of parallel workers
-- `--benchmark` — show performance metrics
-- `--force-backend <name>` — native-python | portable-python | pyodide | cython
+> A ready‑to‑run browser demo (Web Worker + progress UI) lives in [`web/`](web/): `index.html`, `pyodide-loader.js`, `worker.js`.
 
-**Examples:**
+---
+
+## 📚 CLI reference
+
+Every command has a short alias.
+
+### `convert <file>` &nbsp;·&nbsp; alias `c`
+
+Convert a single file to Parquet.
+
+| Option | Description |
+|--------|-------------|
+| `-o, --output <file>` | Custom output path |
+| `-v, --verbose` | Detailed logs |
+| `--streaming` | Streaming mode for large files |
+| `--no-repair` | Disable auto‑repair |
+| `--no-normalize` | Disable auto‑normalize |
+| `--backend <type>` | Force backend: `native-python` · `portable-python` · `pyodide` · `cython` |
+| `--compression <type>` | `adaptive` (default) · `snappy` · `zstd` · `lz4` · `gzip` · `brotli` · `none` |
+| `--workers <n>` | Parallel workers (`0` = auto) |
+| `--benchmark` | Show speed/throughput metrics |
+| `--no-progress` | Disable the progress bar |
 
 ```bash
 ultra-parquet-converter convert sales.csv
 ultra-parquet-converter convert data.json -o analytics/data.parquet
 ultra-parquet-converter convert huge_log.csv --streaming --compression zstd -v
-ultra-parquet-converter convert raw_data.csv --no-repair --no-normalize
-ultra-parquet-converter convert big_file.csv --force-backend cython --workers 4
+ultra-parquet-converter convert data.csv --backend pyodide      # WASM, no Python
 ```
 
-**Sample output:**
-```
-🔄 Ultra Parquet Converter v1.3.0
+<details>
+<summary>Sample output</summary>
 
-✓ Python 3.11 installed (command: py)
-✓ Conversion successful!
+```text
+🔄 Ultra Parquet Converter v1.4.0
+
+✔ Python installed (command: py)
 
 📊 Results:
 
-   Source file:     sales.csv
-   Output file:     sales.parquet
-   Detected type:   CSV
-   Backend:         native-python
-   Compression:     snappy
-   Rows:            125,430
-   Columns:         18
-   Original size:   25.4 MB
-   Parquet size:    4.2 MB
-   Compression:     83.5%
-   Time:            2.34s
-   Workers:         4
+   Backend usado:      native-python
+   Archivo origen:     sales.csv
+   Archivo destino:    sales.parquet
+   Tipo detectado:     CSV
+   Filas:              125,430
+   Columnas:           18
+   Tamaño original:    25.4 MB
+   Tamaño Parquet:     4.2 MB
+   Compresión:         83.5%
+   Algoritmo:          ZSTD (adaptativo)
+   Tiempo:             2.34s
 ```
 
----
+</details>
 
-### `batch` — Bulk Conversion
+### `batch <pattern>` &nbsp;·&nbsp; alias `b`
 
-```bash
-ultra-parquet-converter batch <pattern> [options]
-# Alias: upc b <pattern>
-```
+Convert many files with a glob pattern.
 
-**Options:**
-- `-o, --output-dir <dir>` — output directory (default: `./output`)
-- `-v, --verbose` — verbose mode
-- `--streaming` — enable streaming for all files
-- `--workers <n>` — parallel workers
-
-**Examples:**
+| Option | Description |
+|--------|-------------|
+| `-o, --output-dir <dir>` | Output directory (default `./output`) |
+| `-v, --verbose` | Verbose mode |
+| `--streaming` | Streaming for all files |
+| `--compression <type>` | Compression algorithm |
+| `--workers <n>` | Parallel workers |
 
 ```bash
 ultra-parquet-converter batch "*.csv"
 ultra-parquet-converter batch "data/*.json" -o converted/
-ultra-parquet-converter batch "logs/*.log" --streaming -v
 ```
 
----
+### `watch <directory>` &nbsp;·&nbsp; alias `w`
 
-### `watch` — Watch Mode
+Watch a directory and convert new/modified files automatically (debounced).
+
+| Option | Description |
+|--------|-------------|
+| `-o, --output-dir <dir>` | Output directory (default: same directory) |
+| `-v, --verbose` | Verbose mode |
+| `--streaming` | Enable streaming |
+| `--compression <type>` | Compression algorithm |
+| `--workers <n>` | Parallel workers |
+| `--debounce <ms>` | Wait before converting (default `500`) |
 
 ```bash
-ultra-parquet-converter watch <directory> [options]
-```
-
-Automatically converts new or modified files. Uses debounce to avoid duplicate conversions.
-
-```bash
-ultra-parquet-converter watch ./data/
 ultra-parquet-converter watch ./incoming/ -o ./processed/ --streaming
 ```
 
----
+### `backends`
 
-### `analyze` — File Analysis
+List all backends and whether they're available in the current environment.
 
-```bash
-ultra-parquet-converter analyze <file>
-# Alias: upc a <file>
-```
+### `info <file>` &nbsp;·&nbsp; alias `i`
 
-Inspects file structure without converting.
+Show file metadata (name, path, extension, size, modified date) without converting.
 
 ---
 
-### `benchmark` — Performance Test
-
-```bash
-ultra-parquet-converter benchmark <file> [options]
-```
-
-**Options:**
-- `--iterations <n>` — number of iterations (default: 3)
-- `--streaming` — test with streaming enabled
-
----
-
-### `validate` — Validate Parquet
-
-```bash
-ultra-parquet-converter validate <file.parquet>
-```
-
-Verifies the integrity of a Parquet file.
-
----
-
-### `backends` — List Available Backends
-
-```bash
-ultra-parquet-converter backends
-```
-
-Shows all backends and their availability in the current environment.
-
----
-
-### `setup` — Install Python Dependencies
-
-```bash
-ultra-parquet-converter setup
-```
-
----
-
-## 💻 Full JavaScript API
+## 💻 JavaScript / TypeScript API
 
 ### `convertToParquet(inputFile, options?)`
 
 ```typescript
-const result = await convertToParquet('data.csv', {
-  output?: string,
-  compression?: 'snappy' | 'zstd' | 'lz4' | 'gzip' | 'brotli' | 'adaptive',
-  streaming?: boolean,
-  autoRepair?: boolean,
-  autoNormalize?: boolean,
-  parallelWorkers?: number,
-  verbose?: boolean,
-  forceBackend?: 'native-python' | 'portable-python' | 'pyodide' | 'cython',
-  fileSize?: number,
-});
-```
-
-**Returns:**
-
-```typescript
-{
-  success: boolean,
-  backend: string,
-  rows: number,
-  columns: number,
-  input_size: number,        // bytes
-  output_size: number,       // bytes
-  compression_ratio: number, // percentage
-  compression_used: string,
-  elapsed_time: number,      // seconds
-  streaming_mode: boolean,
-  parallel_workers: number,
-  errors_fixed: number,
-  columns_removed: number,
-  chunks_processed: number,
-  limitations?: string[],    // Pyodide only
+interface ConversionOptions {
+  output?: string;
+  compression?: 'snappy' | 'zstd' | 'lz4' | 'gzip' | 'brotli' | 'none' | 'adaptive';
+  streaming?: boolean;
+  autoRepair?: boolean;
+  autoNormalize?: boolean;
+  parallelWorkers?: number;
+  verbose?: boolean;
+  forceBackend?: 'native-python' | 'portable-python' | 'pyodide' | 'cython';
+  fileSize?: number;
 }
 ```
 
-### `backendSelector` — Manual Backend Control
+Returns a `ConversionResult`:
 
 ```typescript
-import { backendSelector } from 'ultra-parquet-converter';
+interface ConversionResult {
+  success: boolean;
+  backend: string;
+  input_file?: string;
+  output_file?: string;
+  rows: number;
+  columns: number;
+  input_size: number;          // bytes
+  output_size: number;         // bytes
+  compression_ratio: number;   // percentage
+  compression_used?: string;
+  elapsed_time: number;        // seconds
+  streaming_mode?: boolean;
+  parallel_workers?: number;
+  errors_fixed?: number;
+  columns_removed?: number;
+  chunks_processed?: number;
+  limitations?: string[];      // Pyodide only
+  parquet_bytes?: number[];    // in‑memory (convertData) only
+}
+```
 
-// Force a specific backend
-backendSelector.setBackend('cython');
+### `PyodideBackend` — WebAssembly
 
-// Check current backend
-console.log(backendSelector.getCurrentBackend());
+```typescript
+import { PyodideBackend } from 'ultra-parquet-converter';
 
-// List all backends
-const info = await backendSelector.getAvailableBackends();
+const backend = new PyodideBackend(/* optional: { loader, logger, indexURL, sourceLoader } */);
+
+// Browser / in‑memory → returns parquet_bytes
+await backend.convertData(csvString | arrayBuffer, options?);
+
+// Node → reads the file and writes the .parquet to disk
+await backend.convert('data.csv', { output: 'data.parquet' });
+
+// Check availability (WebAssembly present + Pyodide loadable)
+await PyodideBackend.isAvailable();
+```
+
+### Manual backend control
+
+```typescript
+import { backendSelector, setBackend, getCurrentBackend, getAvailableBackends } from 'ultra-parquet-converter';
+
+setBackend('cython');
+console.log(getCurrentBackend());          // 'cython'
+const info = await getAvailableBackends(); // availability + descriptions per backend
 ```
 
 ### Other exports
@@ -413,10 +379,11 @@ const info = await backendSelector.getAvailableBackends();
 ```typescript
 import {
   convertToParquet,
-  analyzeFile,
-  benchmarkConversion,
-  validateParquet,
+  getAvailableBackends,
+  setBackend,
+  getCurrentBackend,
   checkPythonSetup,
+  detectEnvironment,
   clearEnvironmentCache,
   backendSelector,
   NativePythonBackend,
@@ -428,304 +395,36 @@ import {
 
 ---
 
-## 🔥 Real Use Cases
-
-### 1. ETL Pipeline
-
-```typescript
-async function etlPipeline(inputDir: string, outputDir: string) {
-  const files = fs.readdirSync(inputDir).filter(f => f.endsWith('.csv'));
-
-  for (const file of files) {
-    const result = await convertToParquet(path.join(inputDir, file), {
-      output: path.join(outputDir, file.replace('.csv', '.parquet')),
-      streaming: true,
-      autoRepair: true,
-      autoNormalize: true,
-      compression: 'zstd',
-    });
-    console.log(`✓ ${file}: ${result.compression_ratio}% compression, ${result.errors_fixed} errors fixed`);
-  }
-}
-```
-
-### 2. ML Dataset Preparation
-
-```typescript
-for (const dataset of ['train.csv', 'test.csv', 'validation.csv']) {
-  const result = await convertToParquet(`data/${dataset}`, {
-    output: `data/parquet/${dataset.replace('.csv', '.parquet')}`,
-    autoRepair: true,
-    parallelWorkers: 4,
-  });
-  console.log(`${dataset}: ${result.rows} rows, ${result.columns_removed} columns removed`);
-}
-```
-
-### 3. Massive Log Processing (Streaming)
-
-```typescript
-const result = await convertToParquet('server-logs-2025.log', {
-  output: 'logs/2025.parquet',
-  streaming: true,      // CRITICAL for large files
-  autoRepair: true,
-  compression: 'lz4',   // Fast compression for logs
-});
-console.log(`${result.chunks_processed} chunks processed, <300MB RAM used`);
-```
-
-### 4. Browser Use (No Python Required)
-
-```typescript
-import { PyodideBackend } from 'ultra-parquet-converter';
-
-const backend = new PyodideBackend();
-const result = await backend.convert('id,name\n1,Alice\n2,Bob');
-console.log(`Converted ${result.rows} rows in browser via WebAssembly`);
-```
-
-### 5. SQLite → Parquet Migration
-
-```typescript
-const result = await convertToParquet('production.sqlite', {
-  output: 'backup/production.parquet',
-  forceBackend: 'native-python',
-});
-console.log(`${result.rows} rows migrated, ${result.compression_ratio}% smaller`);
-```
-
----
-
-## 📊 Performance Benchmarks
-
-### Small Files (<100MB)
-| Size | Rows | Format | Time | Speed | Compression |
-|------|------|--------|------|-------|-------------|
-| 10 MB | 100K | CSV | 0.8s | 125K rows/s | 82% |
-| 25 MB | 250K | JSON | 1.2s | 208K rows/s | 75% |
-| 50 MB | 500K | XLSX | 3.5s | 143K rows/s | 88% |
-
-### Large Files (Streaming)
-| Size | Rows | Format | Time | Speed | RAM Used |
-|------|------|--------|------|-------|----------|
-| 5 GB | 50M | CSV | 4m 30s | 185K rows/s | 280 MB |
-| 10 GB | 100M | LOG | 8m 15s | 202K rows/s | 290 MB |
-| 20 GB | 200M | TSV | 16m 40s | 200K rows/s | 300 MB |
-
-**Without streaming, files above 1GB cause Out of Memory.**
-
----
-
-## 🛠️ Advanced Features
-
-### Auto-repair
-
-Automatically detects and fixes:
-
-- **Empty columns** — removed automatically
-- **Wrong types** — `"123"` (string) → `123` (int64)
-- **Duplicate rows** — removed
-- **Corrupt CSV lines** — skipped gracefully
+## 🧪 Development
 
 ```bash
-# Disable auto-repair
-ultra-parquet-converter convert data.csv --no-repair
+npm install
+npm run build          # compile TypeScript → dist/
+npm test               # run the test suite
+npm run test:coverage  # tests + coverage report
+npm run lint           # type-check (tsc --noEmit)
 ```
 
-### Auto-normalize
+Integration tests that need a real Python + pandas install are **skipped automatically** when those dependencies aren't present, so the suite stays green in any CI.
 
-- **Column names**: `"Customer ID"` → `"customer_id"`
-- **Constant columns** → removed (saves space)
+Project layout:
 
-```bash
-# Disable auto-normalize
-ultra-parquet-converter convert data.csv --no-normalize
+```text
+src/
+  backends/     native-python · portable-python · pyodide · cython · selector
+  utils/        detect · download · progress · python-runner
+  types/        shared TypeScript types
+python/         converter_advanced.py (native) · pyodide_convert.py (WASM)
+web/            browser demo (Pyodide worker + UI)
+cython/         .pyx sources + compiled modules
 ```
-
-### Smart Format Detection
-
-By **extension** (fast) + **content** (smart):
-
-```
-file.txt with commas    → CSV
-file.dat with tabs      → TSV
-file.data (magic "PAR1") → Parquet
-file.db (magic "SQLite") → SQLite
-```
-
----
-
-## 🎯 Why Parquet?
-
-| Feature | CSV | JSON | Excel | Parquet |
-|---------|-----|------|-------|---------|
-| **Size** | 100% | 120% | 80% | **15–30%** ⚡ |
-| **Read speed** | 1x | 0.8x | 0.5x | **10–100x** ⚡ |
-| **Compression** | ❌ | ❌ | ✅ | **✅✅✅** |
-| **Schema** | ❌ | Partial | ✅ | **✅ Strong** |
-| **Columnar** | ❌ | ❌ | ❌ | **✅** |
-| **Big Data** | Slow | Slow | ❌ | **✅ Optimized** |
-
----
-
-## 🐛 Troubleshooting
-
-### "Python not found"
-
-```bash
-# Install Python 3.11 from https://www.python.org/downloads/release/python-3119/
-# Check "Add Python to PATH" during installation
-
-# macOS:
-brew install python@3.11
-
-# Ubuntu/Debian:
-sudo apt install python3.11 python3.11-pip
-
-# Verify:
-py --version      # Windows → should show Python 3.11.x
-python3 --version # Linux/macOS → should show Python 3.11.x
-```
-
-### "Missing Python dependencies"
-
-```bash
-# Automatic:
-ultra-parquet-converter setup
-
-# Manual with pip:
-pip install pandas pyarrow numpy openpyxl lxml pyyaml fastavro pyreadstat
-
-# Offline with .whl files (air-gapped environments):
-pip install --no-index --find-links=./wheels pandas pyarrow numpy openpyxl lxml pyyaml fastavro pyreadstat
-# Download cp311 wheels from https://pypi.org for your platform
-```
-
-### "Incompatible library versions"
-
-Always use **Python 3.11** to ensure all dependencies compile and link correctly against the same ABI. Mixing Python versions (e.g. 3.10 pandas with 3.11 pyarrow) can cause subtle import errors.
-
-```bash
-# Check your Python version:
-py --version    # Should be 3.11.x
-
-# If multiple Python versions are installed, pin explicitly:
-py -3.11 -m pip install pandas pyarrow numpy
-```
-
-### Out of Memory
-
-```bash
-ultra-parquet-converter convert huge_file.csv --streaming
-# Or increase Node.js memory:
-NODE_OPTIONS="--max-old-space-size=4096" ultra-parquet-converter convert file.csv
-```
-
----
-
-## 🏗️ Architecture
-
-```
-ultra-parquet-converter/
-├── src/
-│   ├── backends/
-│   │   ├── native-python.ts      # System Python backend
-│   │   ├── portable-python.ts    # Auto-download Python 3.11 backend
-│   │   ├── pyodide-backend.ts    # WebAssembly backend (DI loader+logger)
-│   │   ├── cython-backend.ts     # Compiled Cython modules backend
-│   │   └── selector.ts           # Automatic backend selector
-│   ├── utils/
-│   │   ├── detect.ts             # Environment detection with caching
-│   │   └── download.ts           # Portable Python 3.11 downloader
-│   ├── cli.ts                    # CLI (progress bar + watch mode)
-│   └── index.ts                  # Public API
-├── python/
-│   └── converter_advanced.py     # Python engine (parallel + adaptive compression)
-├── cython/
-│   ├── fast_csv.pyx              # Cython CSV parser
-│   ├── fast_parser.pyx           # Cython data parser
-│   └── setup.py
-└── web/
-    └── worker.js                 # Web Worker for browser use
-```
-
----
-
-## 🔨 Building Cython Modules
-
-For maximum performance on large files (requires Python 3.11):
-
-```bash
-pip install cython pandas pyarrow numpy
-npm run build:cython
-```
-
----
-
-## 🛠️ Development
-
-```bash
-npm run build          # Compile TypeScript
-npm test               # Run tests
-npm run coverage       # Tests with coverage report
-npm run coverage:open  # Coverage + open in browser
-npm run dev            # Watch mode
-npm run lint           # Type check only
-```
-
----
-
-## 📈 Roadmap
-
-### v1.4.0
-- [ ] REST API server mode
-- [ ] Cloud integration (S3, GCS, Azure Blob)
-- [ ] TypeScript SDK with Hono.js + tRPC (ApexVision-Core)
-- [ ] Delta Lake output
-
-### v2.0.0
-- [ ] Custom format plugins
-- [ ] Apache Iceberg support
-- [ ] Streaming SQL queries
-- [ ] GUI web interface
 
 ---
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a branch: `git checkout -b feature/MyFeature`
-3. Commit: `git commit -m 'feat: add MyFeature'`
-4. Push: `git push origin feature/MyFeature`
-5. Open a Pull Request
+Issues and PRs are welcome at the [GitHub repository](https://github.com/Brashkie/ultra-parquet-converter). Please run `npm run build && npm test` before submitting.
 
-**Bug reports:** include version, OS, exact Python version (`py --version`), Node.js version, exact command, and full error output.
+## 📄 License
 
----
-
-## 📝 License
-
-Apache-2.0 — see [LICENSE](LICENSE)
-
----
-
-## 🙏 Acknowledgements
-
-- **Apache Arrow** + **PyArrow** — columnar storage engine
-- **Pandas** — Python data manipulation
-- **NumPy** — numerical computing
-- **Commander.js** — CLI framework
-- **Chalk** + **Ora** + **cli-progress** — terminal UX
-- **openpyxl**, **lxml**, **PyYAML**, **fastavro**, **pyreadstat** — format parsers
-
----
-
-**Made with ❤️ for the Data Engineering community**
-
-**Author: Hepein Oficial × Brashkie** — [github.com/Brashkie](https://github.com/Brashkie)
-
-⭐ If you find this useful, [star it on GitHub](https://github.com/Brashkie/ultra-parquet-converter)!
-
----
-
-**Version**: 1.3.0 | **Python**: 3.11 | **License**: Apache-2.0 | **NPM**: [ultra-parquet-converter](https://www.npmjs.com/package/ultra-parquet-converter)
+[Apache‑2.0](LICENSE) © **Hepein Oficial × Brashkie**

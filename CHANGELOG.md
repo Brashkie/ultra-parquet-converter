@@ -7,7 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.3.0] - 2025-04-17
+## [1.4.0] - 2025-07-05
+
+### 🧱 Refactor — WASM correcto, sin duplicación, más estructurado
+
+Release enfocado en robustez y limpieza. El objetivo central: que el camino
+WebAssembly (Pyodide) funcione de forma consistente y que desaparezca la
+duplicación de código entre Node y el navegador.
+
+### 🐛 Fixed
+
+- **Pyodide roto a través del selector.** Los backends exponen `convert(inputFile)`
+  (ruta de archivo), pero el backend Pyodide esperaba datos crudos. Al enrutar a
+  WASM en Node se le pasaba la ruta como si fuera el CSV. Ahora `convert(path)`
+  lee el archivo, convierte y **escribe el `.parquet` a disco**, con
+  `input_file`/`output_file` reales.
+- **El CLI bloqueaba WASM.** `convert` exigía Python del sistema y hacía `exit(1)`
+  antes de cualquier conversión, impidiendo `--backend pyodide`. Ahora Pyodide se
+  salta esa verificación (no requiere instalación).
+- **Transferencia binaria frágil.** Se eliminó el `bytes([...])` gigante inyectado
+  como código Python; los bytes se pasan por `toPy`/globals.
+
+### ✨ Added
+
+- **`PyodideBackend.convertData(data, options)`** — API en memoria para el
+  navegador/uso programático (devuelve `parquet_bytes`, sin filesystem).
+- **`python/pyodide_convert.py`** — fuente única del código de conversión WASM.
+
+### ♻️ Changed
+
+- **Sin duplicación de código Python.** El generador Python estaba copiado en
+  `pyodide-backend.ts` y `web/worker.js`; ahora ambos cargan el mismo
+  `python/pyodide_convert.py` e inyectan los datos por globals (sin escaping por
+  interpolación de string).
+- **Runner Python compartido** (`src/utils/python-runner.ts`): `findPython` y el
+  patrón spawn→JSON, antes triplicados en native/portable/cython, viven en un solo
+  lugar.
+- **`Environment`** deja de estar duplicado: fuente única en `src/types`.
+- Portable y Cython ahora respetan `compression`/`workers` como Native (consistencia).
+- Tests de integración con Python real se saltan limpiamente si no hay
+  `pandas`/`pyarrow` (verde en CI) en vez de fallar.
+- **Cobertura de tests al 100%** (statements, branches, functions y lines). Se
+  extrajo la detección de runtime a `src/utils/runtime.ts` (Node vs navegador,
+  CDN vs node_modules, fs vs fetch) para hacer testeables esas ramas, y se
+  eliminó una rama muerta en el runner Python.
+- Limpieza de archivos vacíos (docs/ y examples/ placeholders).
+
+
 
 ### 🎉 Release — TypeScript Hybrid Architecture + Full Test Coverage
 

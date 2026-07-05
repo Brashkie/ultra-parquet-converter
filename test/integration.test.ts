@@ -19,6 +19,7 @@ import {
 } from '../src/index';
 import { existsSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { describeIfPython, itIfPython } from './helpers/python-env';
 
 const TEST_DIR  = join(__dirname, 'fixtures');
 const TEST_CSV  = join(TEST_DIR, 'test_integration.csv');
@@ -46,7 +47,7 @@ describe('Integration Tests', () => {
 
   // ── convertToParquet ─────────────────────────────────────────────────
 
-  describe('convertToParquet', () => {
+  describeIfPython('convertToParquet (requiere Python + pandas)', () => {
     it('should convert CSV to Parquet successfully', async () => {
       const result = await convertToParquet(TEST_CSV, {
         output: OUTPUT_FILE,
@@ -75,7 +76,7 @@ describe('Integration Tests', () => {
   // ── Backend Selection ─────────────────────────────────────────────────
 
   describe('Backend Selection', () => {
-    it('should allow forcing backend', async () => {
+    itIfPython('should allow forcing backend', async () => {
       setBackend('native-python');
       const result = await convertToParquet(TEST_CSV);
       expect(result.backend).toBe('native-python');
@@ -97,7 +98,7 @@ describe('Integration Tests', () => {
       ).rejects.toThrow();
     });
 
-    it('should handle invalid options gracefully', async () => {
+    itIfPython('should handle invalid options gracefully', async () => {
       // Compresión inválida → warning + fallback a adaptive → conversión exitosa
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -118,7 +119,7 @@ describe('Integration Tests', () => {
 
   // ── Performance ───────────────────────────────────────────────────────
 
-  describe('Performance', () => {
+  describeIfPython('Performance (requiere Python + pandas)', () => {
     it('should complete conversion in reasonable time', async () => {
       const start = Date.now();
       await convertToParquet(TEST_CSV);

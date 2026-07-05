@@ -7,6 +7,8 @@ import { PyodideBackend } from '../src/backends/pyodide-backend';
 import { CythonBackend } from '../src/backends/cython-backend';
 import { detectEnvironment } from '../src/utils/detect';
 import { existsSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
+import * as fs from 'fs';
+import * as runtime from '../src/utils/runtime';
 import { join } from 'path';
 
 const FIXTURES_DIR = join(__dirname, 'fixtures');
@@ -277,46 +279,57 @@ describe('PortablePythonBackend', () => {
 // ══════════════════════════════════════════════════════════════════════════════
 // PyodideBackend
 // ══════════════════════════════════════════════════════════════════════════════
-
 describe('PyodideBackend', () => {
 
-  // Helper: crea mock de instancia Pyodide
+  // Mock de instancia Pyodide (incluye globals.set y toPy del nuevo diseño)
   function makeMockPyodide(resultJson: string) {
     return {
       loadPackage: jest.fn().mockResolvedValue(undefined),
       runPythonAsync: jest.fn().mockResolvedValue(resultJson),
+      runPython: jest.fn(),
+      toPy: jest.fn((x: unknown) => x),
+      globals: { set: jest.fn() },
     };
   }
 
-  // Helper: crea loader mock que resuelve con una instancia Pyodide
   function makeLoader(pyodide: ReturnType<typeof makeMockPyodide>) {
     return jest.fn().mockResolvedValue({ loadPyodide: jest.fn().mockResolvedValue(pyodide) });
   }
 
-  // Helper: resultado exitoso de Python
   function makePyResult(overrides = {}) {
     return JSON.stringify({
       success: true, rows: 2, columns: 2,
       input_size: 20, output_size: 10,
-      compression_ratio: 50, file_type: 'auto-detected',
-      parquet_bytes: [1, 2, 3],
+      compression_ratio: 50, compression_used: 'snappy',
+      file_type: 'csv', parquet_bytes: [1, 2, 3],
       ...overrides,
     });
   }
 
-  // Helper: logger silencioso para tests
   function makeSilentLogger() {
-    return {
-      info:  jest.fn(),
-      warn:  jest.fn(),
-      error: jest.fn(),
-    };
+    return { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
   }
+
+  // Construye un backend con dependencias inyectadas (loader/logger/sourceLoader)
+  function makeBackend(
+    pyodide: ReturnType<typeof makeMockPyodide>,
+    logger = makeSilentLogger(),
+  ) {
+    return new PyodideBackend({
+      loader: makeLoader(pyodide),
+      logger,
+      sourceLoader: async () => 'PY_SOURCE',
+      indexURL: 'test://local/',
+    });
+  }
+
+  // La primera llamada a runPythonAsync es la fuente .py; la segunda es upc_convert
+  const convertCall = (pyodide: ReturnType<typeof makeMockPyodide>) =>
+    pyodide.runPythonAsync.mock.calls[1][0] as string;
 
   // ── isAvailable ─────────────────────────────────────────────────────────────
 
   describe('isAvailable', () => {
-
     it('returns boolean without loader', async () => {
       expect(typeof await PyodideBackend.isAvailable()).toBe('boolean');
     });
@@ -338,117 +351,86 @@ describe('PyodideBackend', () => {
       expect(await PyodideBackend.isAvailable()).toBe(false);
       (globalThis as any).WebAssembly = origWA;
     });
+
+    it('instance isAvailable delegates to static', async () => {
+      const backend = makeBackend(makeMockPyodide('{}'));
+      expect(typeof await backend.isAvailable()).toBe('boolean');
+    });
   });
 
   // ── initialize ──────────────────────────────────────────────────────────────
 
   describe('initialize', () => {
-
     it('should initialize only once (idempotent)', async () => {
       const pyodide = makeMockPyodide('{}');
-      const loader  = makeLoader(pyodide);
-
-      const backend = new PyodideBackend(loader);
+      const loader = makeLoader(pyodide);
+      const backend = new PyodideBackend({ loader, logger: makeSilentLogger(), sourceLoader: async () => 'S' });
       await backend.initialize();
       await backend.initialize();
-
       expect(loader).toHaveBeenCalledTimes(1);
     });
 
     it('should handle concurrent initialize calls (race condition)', async () => {
       const pyodide = makeMockPyodide('{}');
-      const loader  = makeLoader(pyodide);
-
-      const backend = new PyodideBackend(loader);
-
-      await Promise.all([
-        backend.initialize(),
-        backend.initialize(),
-        backend.initialize(),
-      ]);
-
+      const loader = makeLoader(pyodide);
+      const backend = new PyodideBackend({ loader, logger: makeSilentLogger(), sourceLoader: async () => 'S' });
+      await Promise.all([backend.initialize(), backend.initialize(), backend.initialize()]);
       expect(loader).toHaveBeenCalledTimes(1);
     });
 
     it('should load pandas, pyarrow, numpy', async () => {
       const pyodide = makeMockPyodide('{}');
-      const loader  = makeLoader(pyodide);
-
-      const backend = new PyodideBackend(loader);
+      const backend = makeBackend(pyodide);
       await backend.initialize();
-
       expect(pyodide.loadPackage).toHaveBeenCalledWith(['pandas', 'pyarrow', 'numpy']);
     });
 
     it('should throw when loader fails', async () => {
-      const failingLoader = jest.fn().mockRejectedValue(new Error('Cannot load'));
-      const backend = new PyodideBackend(failingLoader);
+      const backend = new PyodideBackend({
+        loader: jest.fn().mockRejectedValue(new Error('Cannot load')),
+        logger: makeSilentLogger(),
+      });
       await expect(backend.initialize()).rejects.toThrow('Cannot load');
     });
 
-    // Cubre: initPromise reset en fallo → permite reintento
     it('should allow retry after failed initialization', async () => {
-      let callCount = 0;
-      const flakyLoader = jest.fn().mockImplementation(() => {
-        callCount++;
-        const pyodide = makeMockPyodide('{}');
-        if (callCount === 1) {
-          return Promise.resolve({
-            loadPyodide: jest.fn().mockRejectedValue(new Error('Transient failure')),
-          });
-        }
-        return Promise.resolve({
-          loadPyodide: jest.fn().mockResolvedValue(pyodide),
-        });
-      });
-
-      const backend = new PyodideBackend(flakyLoader);
+      const pyodide = makeMockPyodide('{}');
+      const loadPyodide = jest.fn()
+        .mockRejectedValueOnce(new Error('Transient failure'))
+        .mockResolvedValueOnce(pyodide);
+      const loader = jest.fn().mockResolvedValue({ loadPyodide });
+      const backend = new PyodideBackend({ loader, logger: makeSilentLogger(), sourceLoader: async () => 'S' });
 
       await expect(backend.initialize()).rejects.toThrow('Transient failure');
       await expect(backend.initialize()).resolves.toBeUndefined();
-
-      expect(flakyLoader).toHaveBeenCalledTimes(2);
     });
 
-    // Cubre: logger.info en las 3 fases de _doInitialize
     it('should call logger during initialization', async () => {
-      const pyodide = makeMockPyodide('{}');
-      const loader  = makeLoader(pyodide);
-      const logger  = makeSilentLogger();
-
-      const backend = new PyodideBackend(loader, logger);
+      const logger = makeSilentLogger();
+      const backend = makeBackend(makeMockPyodide('{}'), logger);
       await backend.initialize();
-
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Cargando Pyodide'));
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Instalando paquetes'));
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Pyodide listo'));
     });
 
     it('should not call logger on second initialize (already initialized)', async () => {
-      const pyodide = makeMockPyodide('{}');
-      const loader  = makeLoader(pyodide);
-      const logger  = makeSilentLogger();
-
-      const backend = new PyodideBackend(loader, logger);
+      const logger = makeSilentLogger();
+      const backend = makeBackend(makeMockPyodide('{}'), logger);
       await backend.initialize();
-
-      logger.info.mockClear();
+      (logger.info as jest.Mock).mockClear();
       await backend.initialize();
-
       expect(logger.info).not.toHaveBeenCalled();
     });
   });
 
-  // ── convert — string input ──────────────────────────────────────────────────
+  // ── convertData — texto ─────────────────────────────────────────────────────
 
-  describe('convert — string input', () => {
-
+  describe('convertData — string input', () => {
     it('should convert CSV string successfully', async () => {
       const pyodide = makeMockPyodide(makePyResult());
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      const result = await backend.convert('id,name\n1,Juan\n2,Maria');
-
+      const backend = makeBackend(pyodide);
+      const result = await backend.convertData('id,name\n1,Juan\n2,Maria');
       expect(result.success).toBe(true);
       expect(result.backend).toBe('pyodide');
       expect(result.rows).toBe(2);
@@ -457,240 +439,261 @@ describe('PyodideBackend', () => {
 
     it('should include all limitations', async () => {
       const pyodide = makeMockPyodide(makePyResult({ rows: 1, columns: 1 }));
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      const result = await backend.convert('a\n1');
-
-      expect(result.limitations).toContain('Pyodide es 10-50x más lento que Python nativo');
-      expect(result.limitations).toContain('No puede leer archivos del filesystem');
-      expect(result.limitations).toContain('Funciona solo en navegador/Node.js con WebAssembly');
+      const backend = makeBackend(pyodide);
+      const result = await backend.convertData('a\n1');
+      expect(result.limitations).toHaveLength(3);
     });
 
-    it('should NOT include repair code when autoRepair=false', async () => {
+    it('should set text global (not interpolate data into source)', async () => {
       const pyodide = makeMockPyodide(makePyResult());
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      await backend.convert('id,name\n1,Juan', { autoRepair: false });
-
-      const code = pyodide.runPythonAsync.mock.calls[0][0] as string;
-      expect(code).not.toContain('dropna');
-      expect(code).not.toContain('drop_duplicates');
+      const backend = makeBackend(pyodide);
+      await backend.convertData('id,name\n1,Juan');
+      expect(pyodide.globals.set).toHaveBeenCalledWith('_upc_text', 'id,name\n1,Juan');
     });
 
-    it('should include repair code when autoRepair=true (default)', async () => {
+    it('should pass autoRepair=False when disabled', async () => {
       const pyodide = makeMockPyodide(makePyResult());
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      await backend.convert('id,name\n1,Juan', { autoRepair: true });
-
-      const code = pyodide.runPythonAsync.mock.calls[0][0] as string;
-      expect(code).toContain('dropna');
-      expect(code).toContain('drop_duplicates');
+      const backend = makeBackend(pyodide);
+      await backend.convertData('id,name\n1,Juan', { autoRepair: false });
+      expect(convertCall(pyodide)).toContain('False');
     });
 
-    it('should include repair code by default (autoRepair undefined)', async () => {
+    it('should pass autoRepair=True by default', async () => {
       const pyodide = makeMockPyodide(makePyResult());
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      await backend.convert('id,name\n1,Juan');
-
-      const code = pyodide.runPythonAsync.mock.calls[0][0] as string;
-      expect(code).toContain('dropna');
+      const backend = makeBackend(pyodide);
+      await backend.convertData('id,name\n1,Juan');
+      expect(convertCall(pyodide)).toContain('True');
     });
 
-    it('should correctly escape special characters via JSON.stringify', async () => {
+    it('should call upc_convert with text mode and compression', async () => {
       const pyodide = makeMockPyodide(makePyResult());
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      const specialData = 'col1,col2\n"quoted",back\\slash\nUnicode:,\u00f1\u00e9\u00e0';
-      await backend.convert(specialData);
-
-      const code = pyodide.runPythonAsync.mock.calls[0][0] as string;
-      expect(code).toContain('data_str');
-      expect(() => {
-        new Function('"use strict"; return `' + code.replace(/`/g, '\\`') + '`');
-      }).not.toThrow();
+      const backend = makeBackend(pyodide);
+      await backend.convertData('id,name\n1,Juan', { compression: 'gzip' });
+      const call = convertCall(pyodide);
+      expect(call).toContain('upc_convert');
+      expect(call).toContain('"text"');
+      expect(call).toContain('gzip');
     });
 
     it('should throw when Python result has success=false', async () => {
-      const pyodide = makeMockPyodide(
-        JSON.stringify({ success: false, error: 'Python falló internamente' })
-      );
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      await expect(backend.convert('data')).rejects.toThrow('Python falló internamente');
+      const pyodide = makeMockPyodide(JSON.stringify({ success: false, error: 'Python falló internamente' }));
+      const backend = makeBackend(pyodide);
+      await expect(backend.convertData('data')).rejects.toThrow('Python falló internamente');
     });
 
     it('should throw with generic message when success=false and no error field', async () => {
       const pyodide = makeMockPyodide(JSON.stringify({ success: false }));
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      await expect(backend.convert('data')).rejects.toThrow('Error desconocido en Pyodide');
+      const backend = makeBackend(pyodide);
+      await expect(backend.convertData('data')).rejects.toThrow('Error desconocido en Pyodide');
     });
 
-    // Cubre: _result_json pattern en el código Python generado
-    it('should generate Python code with _result_json pattern', async () => {
+    it('should throw descriptive error when Pyodide returns invalid JSON', async () => {
+      const pyodide = makeMockPyodide('not json at all');
+      const backend = makeBackend(pyodide);
+      await expect(backend.convertData('data')).rejects.toThrow('Pyodide returned invalid JSON');
+    });
+
+    it('should wrap error when runPythonAsync throws', async () => {
       const pyodide = makeMockPyodide(makePyResult());
-      const backend = new PyodideBackend(makeLoader(pyodide));
+      pyodide.runPythonAsync = jest.fn()
+        .mockResolvedValueOnce('PY_SOURCE')
+        .mockRejectedValueOnce(new Error('boom'));
+      const backend = makeBackend(pyodide);
+      await expect(backend.convertData('data')).rejects.toThrow('Pyodide conversion failed: boom');
+    });
 
-      await backend.convert('id,name\n1,Juan');
+    it('should not double-wrap error message', async () => {
+      const pyodide = makeMockPyodide(makePyResult());
+      pyodide.runPythonAsync = jest.fn()
+        .mockResolvedValueOnce('PY_SOURCE')
+        .mockRejectedValueOnce(new Error('Pyodide conversion failed: original'));
+      const backend = makeBackend(pyodide);
+      await expect(backend.convertData('data')).rejects.toThrow('Pyodide conversion failed: original');
+    });
 
-      const code = pyodide.runPythonAsync.mock.calls[0][0] as string;
-      expect(code).toContain('_result');
-      expect(code).toContain('json.dumps');
-      expect(
-        code.includes('_result_json = json.dumps(_result)') ||
-        code.includes('json.dumps(_result)')
-      ).toBe(true);
+    it('should throw "Pyodide no inicializado" when pyodide is null after init', async () => {
+      const pyodide = makeMockPyodide(makePyResult());
+      const backend = makeBackend(pyodide);
+      await backend.initialize();
+      (backend as any).pyodide = null;
+      await expect(backend.convertData('data')).rejects.toThrow('Pyodide no inicializado');
     });
   });
 
-  // ── convert — ArrayBuffer input ─────────────────────────────────────────────
+  // ── convertData — binario ───────────────────────────────────────────────────
 
-  describe('convert — ArrayBuffer input', () => {
-
+  describe('convertData — ArrayBuffer input', () => {
     it('should convert ArrayBuffer successfully', async () => {
       const pyodide = makeMockPyodide(makePyResult({ file_type: 'binary', rows: 5 }));
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      const result = await backend.convert(new ArrayBuffer(16));
-
+      const backend = makeBackend(pyodide);
+      const result = await backend.convertData(new ArrayBuffer(16));
       expect(result.success).toBe(true);
       expect(result.backend).toBe('pyodide');
       expect(result.rows).toBe(5);
     });
 
-    // Cubre: generateBinaryConversionCode — buf.seek(0) + json.dumps pattern
-    it('should generate binary code with buf.seek(0) for fallback', async () => {
+    it('should set binary global via toPy (no giant bytes string)', async () => {
       const pyodide = makeMockPyodide(makePyResult({ file_type: 'binary' }));
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      await backend.convert(new ArrayBuffer(8));
-
-      const code = pyodide.runPythonAsync.mock.calls[0][0] as string;
-      expect(code).toContain('input_bytes');
-      expect(code).toContain('read_excel');
-      expect(code).toContain('buffer.seek(0)');
-      expect(code).toContain('read_parquet');
-      expect(code).toContain('json.dumps');
+      const backend = makeBackend(pyodide);
+      await backend.convertData(new ArrayBuffer(4));
+      expect(pyodide.toPy).toHaveBeenCalled();
+      expect(pyodide.globals.set).toHaveBeenCalledWith('_upc_bytes', expect.anything());
+      expect(convertCall(pyodide)).toContain('"binary"');
     });
   });
 
-  // ── convert — errores ───────────────────────────────────────────────────────
+  // ── convert — API de archivo (Node) ─────────────────────────────────────────
 
-  describe('convert — errores', () => {
+  describe('convert — file API (Node)', () => {
+    const TMP_CSV = join(FIXTURES_DIR, 'pyodide-input.csv');
+    const TMP_OUT = join(FIXTURES_DIR, 'pyodide-input.parquet');
 
-    it('should wrap error when runPythonAsync throws', async () => {
-      const pyodide = {
-        loadPackage: jest.fn().mockResolvedValue(undefined),
-        runPythonAsync: jest.fn().mockRejectedValue(new Error('Python error')),
-      };
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      await expect(backend.convert('data')).rejects.toThrow('Pyodide conversion failed: Python error');
+    beforeEach(() => writeFileSync(TMP_CSV, 'id,name\n1,Juan\n2,Maria'));
+    afterEach(() => {
+      if (existsSync(TMP_CSV)) unlinkSync(TMP_CSV);
+      if (existsSync(TMP_OUT)) unlinkSync(TMP_OUT);
     });
 
-    it('should not double-wrap error message', async () => {
-      const pyodide = {
-        loadPackage: jest.fn().mockResolvedValue(undefined),
-        runPythonAsync: jest.fn().mockRejectedValue(
-          new Error('Pyodide conversion failed: already wrapped')
-        ),
-      };
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      const err = await backend.convert('data').catch(e => e);
-      expect(err.message).toBe('Pyodide conversion failed: already wrapped');
-    });
-
-    // Cubre línea 154: catch del JSON.parse defensivo → 'Pyodide returned invalid JSON'
-    it('should throw descriptive error when Pyodide returns invalid JSON', async () => {
-      const pyodide = {
-        loadPackage: jest.fn().mockResolvedValue(undefined),
-        runPythonAsync: jest.fn().mockResolvedValue('not valid json at all <<<>>>'),
-      };
-      const backend = new PyodideBackend(makeLoader(pyodide));
-
-      const err = await backend.convert('data').catch(e => e);
-      expect(err.message).toContain('invalid JSON');
-    });
-
-    it('should throw when loader fails during convert', async () => {
-      const failingLoader = jest.fn().mockRejectedValue(new Error('Failed to load'));
-      const backend = new PyodideBackend(failingLoader);
-
-      await expect(backend.convert('data')).rejects.toThrow();
-    });
-
-    // Cubre línea 136-137: !this.pyodide → 'Pyodide no inicializado correctamente'
-    it('should throw "Pyodide no inicializado" when pyodide is null after init', async () => {
+    it('should read a file, write the parquet and set input/output paths', async () => {
       const pyodide = makeMockPyodide(makePyResult());
-      const backend = new PyodideBackend(makeLoader(pyodide));
+      const backend = makeBackend(pyodide);
+      const result = await backend.convert(TMP_CSV);
 
+      expect(result.success).toBe(true);
+      expect(result.backend).toBe('pyodide');
+      expect(result.input_file).toBe(TMP_CSV);
+      expect(result.output_file).toBe(TMP_OUT);
+      expect(existsSync(TMP_OUT)).toBe(true);
+      // parquet_bytes se descarta en la ruta de archivo (coincide con native)
+      expect((result as any).parquet_bytes).toBeUndefined();
+    });
+
+    it('should honor a custom output path', async () => {
+      const customOut = join(FIXTURES_DIR, 'custom.parquet');
+      const pyodide = makeMockPyodide(makePyResult());
+      const backend = makeBackend(pyodide);
+      const result = await backend.convert(TMP_CSV, { output: customOut });
+      expect(result.output_file).toBe(customOut);
+      expect(existsSync(customOut)).toBe(true);
+      unlinkSync(customOut);
+    });
+
+    it('should throw when input file does not exist', async () => {
+      const pyodide = makeMockPyodide(makePyResult());
+      const backend = makeBackend(pyodide);
+      await expect(backend.convert('no-existe.csv')).rejects.toThrow('Archivo no encontrado');
+    });
+
+    it('should read a binary file (.parquet) as ArrayBuffer', async () => {
+      const binIn = join(FIXTURES_DIR, 'pyodide-input.parquet');
+      writeFileSync(binIn, Buffer.from([80, 65, 82, 49])); // "PAR1"
+      const pyodide = makeMockPyodide(makePyResult({ file_type: 'parquet' }));
+      const backend = makeBackend(pyodide);
+      const result = await backend.convert(binIn, { output: join(FIXTURES_DIR, 'bin-out.parquet') });
+      expect(result.success).toBe(true);
+      expect(convertCall(pyodide)).toContain('"binary"');
+      unlinkSync(binIn);
+      unlinkSync(join(FIXTURES_DIR, 'bin-out.parquet'));
+    });
+
+    it('should write an empty parquet when result has no parquet_bytes', async () => {
+      const noBytes = JSON.stringify({
+        success: true, rows: 0, columns: 0, input_size: 0, output_size: 0,
+        compression_ratio: 0, compression_used: 'snappy', file_type: 'csv',
+      });
+      const pyodide = makeMockPyodide(noBytes);
+      const backend = makeBackend(pyodide);
+      const result = await backend.convert(TMP_CSV);
+      expect(existsSync(result.output_file!)).toBe(true);
+    });
+
+    it('should reject convert() outside Node', async () => {
+      const spy = jest.spyOn(runtime, 'isNodeRuntime').mockReturnValue(false);
+      const backend = makeBackend(makeMockPyodide(makePyResult()));
+      await expect(backend.convert(TMP_CSV)).rejects.toThrow('requiere Node.js');
+      spy.mockRestore();
+    });
+  });
+
+  // ── comportamiento interno ────────────────────────────────────────────────
+
+  describe('internal behavior', () => {
+    it('should load the Python source only once across conversions', async () => {
+      const pyodide = makeMockPyodide(makePyResult());
+      const sourceLoader = jest.fn().mockResolvedValue('PY_SOURCE');
+      const backend = new PyodideBackend({
+        loader: makeLoader(pyodide),
+        logger: makeSilentLogger(),
+        sourceLoader,
+      });
+      await backend.convertData('a\n1');
+      await backend.convertData('b\n2');
+      expect(sourceLoader).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use console as the default logger', async () => {
+      const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      // sin logger inyectado → usa `console`
+      const backend = new PyodideBackend({
+        loader: makeLoader(makeMockPyodide('{}')),
+        sourceLoader: async () => 'S',
+        indexURL: 'test://local/',
+      });
       await backend.initialize();
-      // Fuerza pyodide a null después de init exitoso (edge case defensivo)
-      (backend as any).pyodide = null;
-
-      await expect(backend.convert('data')).rejects.toThrow('Pyodide no inicializado correctamente');
+      expect(infoSpy).toHaveBeenCalled();
+      infoSpy.mockRestore();
+      logSpy.mockRestore();
     });
   });
 
-  // ── logger inyectable ────────────────────────────────────────────────────────
+  // ── rutas por defecto (sin DI) ───────────────────────────────────────────────
 
-  describe('logger inyectable', () => {
-
-    it('should use custom logger instead of console', async () => {
+  describe('default providers (Node)', () => {
+    it('should use the real .py source loader and node_modules indexURL', async () => {
       const pyodide = makeMockPyodide(makePyResult());
-      const logger  = makeSilentLogger();
-      const backend = new PyodideBackend(makeLoader(pyodide), logger);
+      // Sin sourceLoader ni indexURL: se ejercitan defaultSourceLoader (fs) y
+      // defaultIndexURL (require.resolve('pyodide')).
+      const backend = new PyodideBackend({
+        loader: makeLoader(pyodide),
+        logger: makeSilentLogger(),
+      });
+      const result = await backend.convertData('id,name\n1,Juan');
+      expect(result.success).toBe(true);
+      // La fuente cargada fue el .py real (contiene la firma de upc_convert)
+      const loadedSource = pyodide.runPythonAsync.mock.calls[0][0] as string;
+      expect(loadedSource).toContain('def upc_convert');
+    });
+  });
 
-      await backend.convert('id,name\n1,Juan');
+  // ── logger DI ────────────────────────────────────────────────────────────────
 
+  describe('logger injection', () => {
+    it('should use custom logger instead of console', async () => {
+      const logger = makeSilentLogger();
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const backend = makeBackend(makeMockPyodide('{}'), logger);
+      await backend.initialize();
       expect(logger.info).toHaveBeenCalled();
-    });
-
-    it('should not call console.log when custom logger is provided', async () => {
-      const pyodide    = makeMockPyodide(makePyResult());
-      const logger     = makeSilentLogger();
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-
-      const backend = new PyodideBackend(makeLoader(pyodide), logger);
-      await backend.convert('id,name\n1,Juan');
-
-      expect(consoleSpy).not.toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
-    });
-
-    // Cubre líneas 65-66: console.warn y console.error del defaultLogger
-    it('should expose warn and error on defaultLogger', () => {
-      const backend = new PyodideBackend(); // usa defaultLogger
-      const logger  = (backend as any).logger;
-
-      expect(typeof logger.warn).toBe('function');
-      expect(typeof logger.error).toBe('function');
-
-      // Verifica que llaman a console.warn/error respectivamente
-      const warnSpy  = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-      logger.warn('test warn');
-      logger.error('test error');
-
-      expect(warnSpy).toHaveBeenCalledWith('test warn');
-      expect(errorSpy).toHaveBeenCalledWith('test error');
-
-      warnSpy.mockRestore();
-      errorSpy.mockRestore();
+      expect(logSpy).not.toHaveBeenCalled();
+      logSpy.mockRestore();
     });
   });
 });
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CythonBackend
 // ══════════════════════════════════════════════════════════════════════════════
 
 describe('CythonBackend', () => {
+
+  it('findCythonModules returns empty when readdir throws (catch branch)', () => {
+    // Pasar la ruta de un ARCHIVO (no dir) hace que readdirSync lance ENOTDIR
+    // de verdad → ejercita el catch sin mocks. __filename siempre existe.
+    const { findCythonModules } = require('../src/backends/cython-backend');
+    expect(findCythonModules(__filename)).toEqual([]);
+  });
 
   describe('getModulesInfo', () => {
     it('returns valid structure', () => {
